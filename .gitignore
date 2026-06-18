@@ -1,0 +1,19 @@
+# Generated artifacts — never edited by hand
+generated/
+
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
