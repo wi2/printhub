@@ -1,0 +1,694 @@
+---
+description: Testing standards — strategy, patterns, anti-patterns, and infrastructure for Vitest, RTL, MSW, and Playwright
+alwaysApply: true
+---
+
+# Testing Standards
+
+Tests are executable documentation. A test that passes for the wrong reason is worse than no test. A test that breaks when you rename a CSS class is maintenance drag, not safety.
+
+## Rule Precedence
+
+When rules conflict: `story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` → `testing.mdc` (this file).
+
+---
+
+## `createWrapper` — Required for Every Hook Test
+
+Define once per test file. Do not import from production code.
+
+```typescript
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+export const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+};
+```
+
+Use for every `renderHook` call. A fresh `QueryClient` per test prevents cache bleed between tests.
+
+---
+
+## Testing Pyramid
+
+```
+         /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
+        /  E2E (Playwright)     \  ← Critical user journeys only
+       /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
+      /  Integration (Vitest)    \ ← Feature slices — real components + MSW
+     /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
+    /  Component (Vitest + RTL)   \ ← UI behavior, interactions, render states
+   /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
+  /  Unit (Vitest)                 \ ← Pure functions, hooks, utilities
+ /‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\
+```
+
+Write the lowest-level test that gives you confidence. Move up a layer only when the layer below cannot adequately test the behavior.
+
+---
+
+## Required Infrastructure
+
+MSW infrastructure is created **when the first test that mocks network requests is written** — not before.
+
+Do not generate `src/lib/msw/server.ts` or `src/setupTests.ts` for tests that make no network calls (e.g. pure function tests, sanity checks).
+
+### `src/lib/msw/server.ts`
+
+Create when the first MSW handler is needed:
+
+```typescript
+import { setupServer } from 'msw/node';
+export const server = setupServer();
+```
+
+### `src/setupTests.ts` (referenced in `vitest.config.ts`)
+
+Create alongside `server.ts`:
+
+```typescript
+import '@testing-library/jest-dom';
+import { afterAll, afterEach, beforeAll } from 'vitest';
+import { server } from '@/lib/msw/server';
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => {
+  server.resetHandlers();
+  vi.clearAllMocks();
+});
+afterAll(() => server.close());
+```
+
+`onUnhandledRequest: 'error'` is required once MSW is active. A request that reaches the network during a test means a handler is missing — it should fail loudly, not silently succeed.
+
+---
+
+## Test Naming and Structure
+
+### Name the behavior, not the code path
+
+Test names are read when tests fail. Write them so a failing test tells you exactly what the user can no longer do.
+
+```typescript
+// ✅ Describes observable behavior
+it('shows a critical badge when alert severity is critical')
+it('calls onDismiss with the alert ID when the dismiss button is clicked')
+it('displays an error message when the alerts request fails')
+
+// ❌ Describes implementation — meaningless when it fails
+it('renders correctly')
+it('handleDismiss works')
+it('returns the right value')
+```
+
+### AAA: Arrange, Act, Assert
+
+Single-step tests have three sections. Multi-step interaction tests may have sequential Act-Assert pairs, but Arrange is always first and never repeated.
+
+```typescript
+// Single-step — three clean sections
+it('filters resolved alerts from the active count', () => {
+  // Arrange
+  const alerts = [makeAlert({ status: 'active' }), makeAlert({ status: 'resolved' })];
+
+  // Act
+  const result = getActiveAlerts(alerts);
+
+  // Assert
+  expect(result).toHaveLength(1);
+  expect(result[0].status).toBe('active');
+});
+
+// Multi-step interaction — Act-Assert repeats, Arrange stays at the top
+it('updates the count after an alert is dismissed', async () => {
+  // Arrange
+  const user = userEvent.setup();
+  render(<AlertsFeature />);
+  await screen.findByText('3 active alerts'); // wait for initial load
+
+  // Act → Assert (step 1)
+  await user.click(screen.getByRole('button', { name: /dismiss exposed api key/i }));
+  await screen.findByText('2 active alerts');
+
+  // Act → Assert (step 2)
+  await user.click(screen.getByRole('button', { name: /dismiss weak cipher/i }));
+  await screen.findByText('1 active alert');
+});
+```
+
+### `describe` blocks: group by behavior cluster, not by file
+
+```typescript
+// ✅
+describe('AlertCard', () => {
+  describe('severity badge', () => {
+    it('shows "Critical" for critical severity')
+    it('shows "Low" for low severity')
+  });
+  describe('dismiss action', () => {
+    it('renders no dismiss button when onDismiss is not provided')
+    it('calls onDismiss with the alert ID when clicked')
+  });
+});
+```
+
+---
+
+## Test Data: Factories Over Static Fixtures
+
+Static fixture objects have two failure modes: they contain fields irrelevant to the test (noise), and they break all at once when the type gains a required field.
+
+Use typed factory functions with sensible defaults. Override only what is relevant to the test.
+
+```typescript
+// src/features/alerts/__fixtures__/makeAlert.ts
+import type { Alert } from '../types'; // typed against the feature's own types — compile error if type drifts
+import type { OrgId } from '@/types';
+import { toAlertId, toOrgId } from '@/types';
+
+// Use a closure counter — each call to makeAlertFactory() creates an isolated sequence.
+// Import the factory, not the counter, to avoid shared mutable state across test files.
+export const makeAlertFactory = () => {
+  let seq = 0;
+  return (overrides: Partial<Alert> = {}): Alert => ({
+    id: toAlertId(`alert-${++seq}`),
+    orgId: toOrgId('org-test') as OrgId,
+    severity: 'medium',
+    title: 'Test alert',
+    status: 'active',
+    issuedAt: '2020-01-01T00:00:00.000Z', // fixed past date — never relative to Date.now()
+    ...overrides,
+  });
+};
+
+// Each test file creates its own factory instance — no shared counter state
+export const makeAlert = makeAlertFactory();
+```
+
+```typescript
+// In each test file that needs stable sequential IDs:
+import { makeAlertFactory } from '../__fixtures__/makeAlert';
+const makeAlert = makeAlertFactory(); // fresh sequence starting at 0
+
+// ✅ Test only what matters — everything else uses the default
+it('shows the resolved state correctly', () => {
+  render(<AlertCard {...makeAlert({ status: 'resolved' })} />);
+  expect(screen.getByRole('status')).toHaveTextContent(/resolved/i);
+});
+
+// ❌ Irrelevant fields cluttering the test
+render(<AlertCard id="alert-1" severity="medium" title="Test" status="resolved"
+  issuedAt="2020-01-01T00:00:00.000Z" orgId="org-1" source="scanner" ... />);
+```
+
+---
+
+## Unit Tests (Vitest)
+
+**What belongs here:** pure functions, data transformations, sorting/filtering, type guards, formatters, business logic with no DOM dependency.
+
+**Performance target:** under 50ms per test file. If a unit test is slow, it has a hidden dependency — find it and remove it.
+
+### Cover boundaries, not just the happy path
+
+Every unit test suite must cover: the expected case, an empty/null input, a boundary value, and the error path.
+
+```typescript
+describe('getActiveAlerts', () => {
+  it('returns only active alerts from a mixed list', () => { ... });     // happy path
+  it('returns an empty array when given an empty array', () => { ... }); // empty input
+  it('returns an empty array when all alerts are resolved', () => { ... }); // boundary
+  // No error path needed here — the input is typed; invalid input is a compile error
+});
+
+describe('sortBySeverity', () => {
+  it('orders from critical to low', () => { ... });
+  it('preserves original order for equal severities (stable sort)', () => { ... });
+  it('handles a single-element array', () => { ... }); // boundary
+  it('handles an empty array', () => { ... });          // boundary
+});
+```
+
+**What does NOT belong here:** components, hooks, anything that imports from React.
+
+---
+
+## Component Tests (Vitest + RTL)
+
+**What belongs here:** UI states, user interactions, conditional rendering, accessibility.
+
+**Performance target:** under 500ms per test file.
+
+### Query priority — highest to lowest
+
+Always use the highest-priority query available. Lower-priority queries couple tests to markup structure.
+
+| Priority | Query | Use when |
+|---|---|---|
+| 1 | `getByRole` | Any element with a semantic role — covers most cases |
+| 2 | `getByLabelText` | Form inputs — the label is the user-visible name |
+| 3 | `getByPlaceholderText` | Input without an associated label |
+| 4 | `getByText` | Non-interactive content |
+| 5 | `getByDisplayValue` | Current value of a select or input |
+| 6 | `getByAltText` | Images |
+| 7 | `getByTitle` | Last resort for tooltip/title attributes |
+| 8 | `getByTestId` | Only for elements with no semantic role — container divs, canvas |
+
+```typescript
+// ✅
+screen.getByRole('button', { name: /dismiss/i })
+screen.getByRole('alert')
+await screen.findByRole('list', { name: /active alerts/i })
+
+// ❌ — first choice
+screen.getByTestId('dismiss-button')
+```
+
+### Use `userEvent` — never `fireEvent`
+
+`userEvent.setup()` simulates the full browser event chain (pointerdown, focus, input, keydown, change, blur). `fireEvent` dispatches one synthetic event — it bypasses focus management, validation, and keyboard handlers.
+
+```typescript
+// ✅
+it('calls onDismiss when the dismiss button is clicked', async () => {
+  const user = userEvent.setup();
+  const onDismiss = vi.fn();
+  render(<AlertCard {...makeAlert()} onDismiss={onDismiss} />);
+
+  await user.click(screen.getByRole('button', { name: /dismiss/i }));
+
+  expect(onDismiss).toHaveBeenCalledExactlyOnceWith(alert.id); // called with the branded AlertId
+});
+
+// ❌
+fireEvent.click(screen.getByTestId('dismiss-btn'));
+```
+
+### Test the four render states — only for components that own data fetching
+
+Components that call a data-fetching hook directly have four states to test. **Presentational components that receive status as a prop do not** — testing `<AlertCard status="loading" />` is testing a prop, not behavior.
+
+```typescript
+// AlertList.test.tsx — AlertList calls useAlerts() internally
+describe('AlertList', () => {
+  it('shows a skeleton while fetching', async () => {
+    server.use(http.get('/api/alerts', () => HttpResponse.json(mockAlerts, { delay: Infinity })));
+    render(<AlertList />);
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
+  });
+
+  it('shows an error state when the request fails', async () => {
+    server.use(http.get('/api/alerts', () => HttpResponse.error()));
+    render(<AlertList />);
+    await screen.findByRole('alert', { name: /could not load/i });
+  });
+
+  it('shows an empty state when no alerts are returned', async () => {
+    server.use(http.get('/api/alerts', () => HttpResponse.json([])));
+    render(<AlertList />);
+    await screen.findByText(/no active alerts/i);
+  });
+
+  it('renders a row for each alert', async () => {
+    server.use(http.get('/api/alerts', () => HttpResponse.json([makeAlert(), makeAlert()])));
+    render(<AlertList />);
+    expect(await screen.findAllByRole('listitem')).toHaveLength(2);
+  });
+});
+```
+
+Note: use `HttpResponse.json(..., { delay: Infinity })` from MSW for the loading state — not a never-resolving `new Promise(() => {})`, which leaks across tests.
+
+### Never assert on implementation details
+
+```typescript
+// ❌ Breaks on CSS rename — not a behavior change
+expect(badge).toHaveClass('badge--critical');
+
+// ❌ Breaks on state management change — not a behavior change
+expect(component.state.isDismissed).toBe(true);
+
+// ✅ Observable to the user — survives any internal refactor
+expect(screen.queryByText('Exposed API key')).not.toBeInTheDocument();
+```
+
+---
+
+## Hook Tests (Vitest + RTL)
+
+**Cover parameter changes and error paths, not just the success path.**
+
+```typescript
+// useAlerts.test.ts
+describe('useAlerts', () => {
+  it('returns alerts for the given orgId', async () => {
+    server.use(http.get('/api/orgs/:orgId/alerts', () => HttpResponse.json([makeAlert()])));
+    const { result } = renderHook(() => useAlerts(toOrgId('org-1')), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toHaveLength(1);
+  });
+
+  it('returns an error when the request fails', async () => {
+    server.use(http.get('/api/orgs/:orgId/alerts', () => HttpResponse.error()));
+    const { result } = renderHook(() => useAlerts(toOrgId('org-1')), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
+  it('re-fetches when orgId changes', async () => {
+    server.use(http.get('/api/orgs/:orgId/alerts', ({ params }) =>
+      HttpResponse.json([makeAlert({ title: `Alert for ${params.orgId}` })])
+    ));
+    const { result, rerender } = renderHook(
+      ({ orgId }) => useAlerts(orgId),
+      { wrapper: createWrapper(), initialProps: { orgId: toOrgId('org-1') } }
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.[0].title).toContain('org-1');
+
+    rerender({ orgId: toOrgId('org-2') });
+    await waitFor(() => expect(result.current.data?.[0].title).toContain('org-2'));
+  });
+});
+```
+
+---
+
+## Zustand Store Tests
+
+Test slices in isolation using `createStore` directly — never import the root store in unit tests.
+
+```typescript
+// src/store/filtersSlice.test.ts
+import { createStore } from 'zustand';
+import { createFiltersSlice } from './filtersSlice';
+
+describe('filtersSlice', () => {
+  const makeStore = () => createStore(createFiltersSlice);
+
+  it('starts with no active filters', () => {
+    const store = makeStore();
+    expect(store.getState().activeFilters).toEqual([]);
+  });
+
+  it('sets active filters', () => {
+    const store = makeStore();
+    store.getState().setFilters(['critical', 'high']);
+    expect(store.getState().activeFilters).toEqual(['critical', 'high']);
+  });
+
+  it('replaces filters — does not append', () => {
+    const store = makeStore();
+    store.getState().setFilters(['critical']);
+    store.getState().setFilters(['high']);
+    expect(store.getState().activeFilters).toEqual(['high']);
+  });
+});
+```
+
+---
+
+## Timer Mocking (Vitest)
+
+Use `vi.useFakeTimers()` for polling intervals, debounce, and auto-dismiss behavior. Restore real timers in `afterEach`.
+
+```typescript
+describe('useAlertPoller', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('re-fetches alerts every 30 seconds', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue([makeAlert()]);
+    const { result } = renderHook(() => useAlertPoller(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+
+    vi.advanceTimersByTime(30_000);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+  });
+});
+```
+
+---
+
+## Integration Tests (Vitest + RTL + MSW)
+
+**What belongs here:** a complete feature slice — real components, real hooks, real store, API mocked at the network layer. Tests that wiring bugs that unit and component tests cannot see.
+
+**Set up default handlers in `beforeEach`. Override per-test for error and edge cases only.**
+
+```typescript
+// features/alerts/__tests__/AlertFeature.test.tsx
+describe('Alerts feature', () => {
+  beforeEach(() => {
+    server.use(
+      http.get('/api/alerts', () => HttpResponse.json([makeAlert(), makeAlert(), makeAlert()])),
+      http.delete('/api/alerts/:id', () => new HttpResponse(null, { status: 204 })),
+    );
+  });
+
+  it('displays the alert count in the header', async () => {
+    render(<AlertsFeature />);
+    await screen.findByText('3 active alerts');
+  });
+
+  it('decrements the count and removes the item after dismissal', async () => {
+    const user = userEvent.setup();
+    render(<AlertsFeature />);
+    const [first] = await screen.findAllByRole('listitem');
+    const title = first.textContent;
+
+    await user.click(within(first).getByRole('button', { name: /dismiss/i }));
+
+    await waitFor(() => expect(screen.queryByText(title!)).not.toBeInTheDocument());
+    await screen.findByText('2 active alerts');
+  });
+
+  it('shows an inline error and keeps the item when dismissal fails', async () => {
+    server.use(http.delete('/api/alerts/:id', () => HttpResponse.error()));
+    const user = userEvent.setup();
+    render(<AlertsFeature />);
+    const [first] = await screen.findAllByRole('listitem');
+
+    await user.click(within(first).getByRole('button', { name: /dismiss/i }));
+
+    await screen.findByRole('alert', { name: /failed to dismiss/i });
+    expect(screen.getAllByRole('listitem')).toHaveLength(3); // item not removed
+  });
+});
+```
+
+---
+
+## End-to-End Tests (Playwright)
+
+**What belongs here:** critical user journeys only. A critical journey is one where a failure prevents the user from achieving the core purpose of the application.
+
+**Justify every E2E test:** before adding one, answer "why can an integration test not cover this?" Acceptable answers: requires a real network stack, tests authentication flows, verifies browser-specific behavior (file download, clipboard, print).
+
+### Critical journeys for a security dashboard
+
+- Authentication: login, session expiry redirect, logout
+- Primary dashboard: loads and displays real data
+- Alert escalation or dismissal end-to-end through real API
+- Report export producing a valid file
+
+### Page Object Model
+
+Consider Page Objects when two or more E2E specs share the same selectors. Do not introduce them speculatively. At MVP, each of the four E2E specs covers a distinct user journey — POM is not required until selector duplication is observed.
+
+When selectors are duplicated across two specs, extract them:
+
+Selectors live in Page Objects. Test files contain only behavior and assertions.
+
+```typescript
+// e2e/pages/AlertsPage.ts
+export class AlertsPage {
+  constructor(private readonly page: Page) {}
+
+  async goto() { await this.page.goto('/alerts'); }
+
+  async waitForLoaded() {
+    await expect(this.page.getByRole('list', { name: /alerts/i })).toBeVisible();
+  }
+
+  async dismissAlert(title: string) {
+    await this.page
+      .getByRole('button', { name: new RegExp(`dismiss ${title}`, 'i') })
+      .click();
+  }
+
+  alertItem(title: string) {
+    return this.page.getByRole('listitem').filter({ hasText: title });
+  }
+}
+
+// e2e/alerts.spec.ts
+test('dismissed alert is removed from the list', async ({ page }) => {
+  const alertsPage = new AlertsPage(page);
+  await alertsPage.goto();
+  await alertsPage.waitForLoaded();
+
+  await alertsPage.dismissAlert('Exposed API key');
+
+  await expect(alertsPage.alertItem('Exposed API key')).not.toBeVisible();
+});
+```
+
+### Never use fixed waits. Never poll with `page.waitForTimeout`.
+
+```typescript
+// ❌
+await page.waitForTimeout(2000);
+
+// ✅ Playwright auto-retries until the assertion passes or times out
+await expect(page.getByRole('list', { name: /alerts/i })).toBeVisible();
+```
+
+### Flaky test policy
+
+A flaky test is a broken test. Do not skip it, do not retry it, do not ignore it. Fix the root cause or delete the test. A suite with known flaky tests cannot be trusted.
+
+---
+
+## Accessibility Testing
+
+### Axe at the integration layer, per render state
+
+Run axe at the integration test level where the full component tree is mounted. Do not run axe on every individual component in isolation — the coverage gain is marginal and the duplication is high. Target states that the default render won't hit: error state, empty state, modal open.
+
+```typescript
+import { axe } from 'vitest-axe';
+
+it('has no accessibility violations in the populated state', async () => {
+  render(<AlertsFeature />);
+  await screen.findAllByRole('listitem');
+  expect(await axe(document.body)).toHaveNoViolations();
+});
+
+it('has no accessibility violations in the error state', async () => {
+  server.use(http.get('/api/alerts', () => HttpResponse.error()));
+  render(<AlertsFeature />);
+  await screen.findByRole('alert');
+  expect(await axe(document.body)).toHaveNoViolations();
+});
+```
+
+### Keyboard navigation — test interactive components explicitly
+
+```typescript
+it('dismiss button is keyboard accessible and activates on Enter', async () => {
+  const user = userEvent.setup();
+  const onDismiss = vi.fn();
+  render(<AlertCard {...makeAlert()} onDismiss={onDismiss} />);
+
+  await user.tab();
+  expect(screen.getByRole('button', { name: /dismiss/i })).toHaveFocus();
+
+  await user.keyboard('{Enter}');
+  expect(onDismiss).toHaveBeenCalledOnce();
+});
+```
+
+---
+
+## Mocking Strategy
+
+### Network: MSW at the network layer
+
+MSW intercepts at `fetch`/`XHR` level and is immune to import path changes.
+
+```typescript
+// ✅
+server.use(http.get('/api/alerts', () => HttpResponse.json([makeAlert()])));
+
+// ❌ Breaks when the file is renamed or moved
+vi.mock('@/features/alerts/api', () => ({ getAlerts: vi.fn().mockResolvedValue([]) }));
+```
+
+### Module mocks: only for these specific cases
+
+Use `vi.mock` only when MSW cannot intercept the dependency:
+
+| Use `vi.mock` for | Do not use `vi.mock` for |
+|---|---|
+| `window.matchMedia` | API calls |
+| `IntersectionObserver` | Feature modules |
+| `localStorage` / `sessionStorage` | Utility functions you control |
+| `navigator.clipboard` | React Query hooks |
+| Third-party analytics SDKs (no fetch) | Any module with a fetch equivalent |
+
+### Factories over static fixtures
+
+See the Test Data section above. Factories are typed against feature types — when the type changes, the factory fails to compile, not silently at runtime.
+
+### `vi.clearAllMocks()` runs after every test
+
+This is enforced in `setupTests.ts`. You do not need to reset mocks manually in individual tests unless you need a specific call count from `beforeEach`.
+
+---
+
+## Coverage Philosophy
+
+Coverage is a floor, not a goal. 100% coverage with tests that verify the wrong thing is worthless.
+
+**Target thresholds (enforce in CI):**
+
+| Layer | Target | Rationale |
+|---|---|---|
+| Utilities / pure functions | 90%+ | Cheap to test exhaustively |
+| Hooks | 80%+ | Core logic — errors are expensive |
+| Components | 70%+ | Happy path + key states |
+| Integration | No threshold | Quality over quantity |
+| E2E | No threshold | Critical paths only |
+
+**What coverage cannot tell you:**
+- Whether your tests assert the right thing
+- Whether error states are handled correctly
+- Whether the UI is accessible
+
+---
+
+## What Not to Test
+
+| Skip | Why |
+|---|---|
+| Third-party library internals | React, React Query, Zustand are tested by their maintainers |
+| CSS classes and visual appearance | Verify with Storybook + visual diff tooling |
+| Snapshot tests for UI components | Approve silently, break on every render — false confidence |
+| Props passed through to child components | Structural, not behavioral — test what the user sees |
+| TypeScript types at runtime | The compiler enforces types; runtime type assertions are redundant |
+| Trivial pass-through wrappers | A component that renders `<div>{children}</div>` needs no test |
+
+```typescript
+// ❌ Snapshot — passes silently on any change
+expect(render(<AlertCard {...makeAlert()} />).container).toMatchSnapshot();
+
+// ❌ Prop-passing assertion — implementation detail
+expect(AlertBadge).toHaveBeenCalledWith({ severity: 'critical' }, {});
+
+// ✅
+expect(screen.getByText('Critical')).toBeInTheDocument();
+```
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | Risk | Fix |
+|---|---|---|
+| `getByTestId` as default query | Survives invisible refactors, breaks semantic contract | `getByRole` first |
+| `fireEvent` instead of `userEvent` | Misses focus, blur, validation chain | `userEvent.setup()` always |
+| `new Promise(() => {})` for loading state | Leaks across tests, causes Vitest warnings | `HttpResponse.json(data, { delay: Infinity })` |
+| `waitFor` wrapping multiple assertions | First passing assertion short-circuits the rest | One assertion per `waitFor` |
+| `page.waitForTimeout` in Playwright | Slow and still flaky | Playwright auto-retrying assertions |
+| `vi.mock` for API calls | Breaks on file rename | MSW handler |
+| Snapshot tests | False confidence, noisy diffs | Explicit behavioral assertions |
+| `afterEach(() => server.resetHandlers())` missing | Handler overrides bleed into adjacent tests | Enforced in `setupTests.ts` |
+| `toHaveBeenCalled` without `toHaveBeenCalledWith` | Confirms invocation, not correctness | Always assert the arguments |
+| Static fixtures for complex objects | Break all at once on type change | Typed factory with defaults |
+| Skipping a flaky test | Erodes trust in the suite | Fix the root cause or delete the test |

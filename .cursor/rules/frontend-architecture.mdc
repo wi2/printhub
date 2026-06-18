@@ -1,0 +1,252 @@
+---
+description: Frontend architecture — folder structure, routing, state ownership, React Query, manifest consumption, and API boundaries for this project
+alwaysApply: true
+---
+
+# Frontend Architecture
+
+This rule describes the approved architecture for this project specifically. It supersedes any generic frontend pattern that conflicts with what is written here.
+
+**Rule precedence (full chain):**
+`story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` (this file) → `testing.mdc`
+
+---
+
+## Folder Structure
+
+```
+src/
+├── pages/
+│   ├── home/
+│   │   └── HomePage.tsx
+│   ├── configure/
+│   │   ├── ConfigurePage.tsx        # Thin route wrapper
+│   │   ├── CombinationForm.tsx      # Owns all four inputs and form state
+│   │   ├── PrinterSelector.tsx
+│   │   ├── MaterialSelector.tsx
+│   │   ├── NozzleSelector.tsx
+│   │   ├── GoalSelector.tsx
+│   │   └── availability.ts          # isAvailable(p, m, n, g) → boolean — no UI
+│   └── profile/
+│       ├── ProfilePage.tsx           # Thin route wrapper
+│       ├── ProfileCard.tsx
+│       ├── DownloadButton.tsx
+│       ├── ImportGuide.tsx
+│       └── FeedbackPrompt.tsx
+│
+├── shared/                           # Design system only — zero product logic
+│   ├── Button.tsx
+│   ├── Card.tsx
+│   ├── SegmentedSelector.tsx
+│   ├── SearchableDropdown.tsx
+│   └── PageLayout.tsx
+│
+├── hooks/
+│   └── useProfileStats.ts            # The only shared hook at MVP
+│
+├── lib/
+│   ├── slug.ts                       # encode/decode combination slugs
+│   └── url-params.ts                 # parse /configure query params
+│
+├── types.ts                          # ALL domain types and constants — one file
+├── App.tsx                           # Router + QueryClientProvider
+└── main.tsx
+```
+
+**Boundary rules:**
+
+- Feature components live inside their page directory. There is no `features/` directory.
+- `src/shared/` components have zero knowledge of domain entities. `SegmentedSelector` does not know it is displaying materials. Domain labels are applied at the page layer.
+- `src/types.ts` imports from nothing in the project. It is the dependency root.
+- `scripts/engine/types.ts` contains engine-internal types only. It never imports from `src/`.
+
+---
+
+## Routing
+
+Three routes. Configured in `App.tsx`.
+
+```
+/                       → HomePage
+/configure              → ConfigurePage
+/profile/:slug          → ProfilePage
+```
+
+`App.tsx` is also where `QueryClientProvider` is mounted. It is 20–30 lines at MVP. It does not need to be split into `router.tsx` and `providers.tsx`.
+
+---
+
+## Page Structure
+
+**Page components are thin route wrappers.** `ConfigurePage.tsx` and `ProfilePage.tsx` render the layout wrapper and their primary feature component. They contain no logic.
+
+**`CombinationForm.tsx`** is the only component that owns the full combination selection state (all four inputs). It:
+- derives the slicer format from the selected printer
+- derives the resolved slug from all four inputs
+- controls the generate button state
+- delegates navigation on submit
+
+**`availability.ts`** is a module, not a component. It exports `isAvailable(printer, material, nozzle, goal): boolean`. It loads the manifest once and holds it in a module-level cache. It has no UI and no React dependency.
+
+---
+
+## State Ownership
+
+The URL is the single source of truth for the current combination.
+
+| State | Owner | Notes |
+|---|---|---|
+| Form inputs (4 values) | `CombinationForm` local state | Initialized from URL query params on mount |
+| Slicer format | Derived from printer in `CombinationForm` | Not shown in the UI at MVP |
+| Combination manifest | Module-level cache in `availability.ts` | One fetch per page load; never re-fetched |
+| Profile static data (title, highlights, file path) | Embedded in the page via SSG | Never fetched at runtime |
+| Confidence count | TanStack Query — `useProfileStats(slug)` | Fetched on mount; does not block render |
+| `hasDownloaded` | `DownloadButton` local state | Drives `ImportGuide` and `FeedbackPrompt` visibility |
+| Feedback outcome | `FeedbackPrompt` local state | Shows confirmation on submit |
+
+**There is no global store.** Zustand is not installed and is not used at MVP. If a component needs state, it owns it locally. The conditions for a global store — shared UI state across multiple routes, user account state — do not exist at MVP.
+
+---
+
+## React Query
+
+React Query is used for exactly **one** query at MVP: `useProfileStats`.
+
+```typescript
+// src/hooks/useProfileStats.ts
+export function useProfileStats(slug: string) {
+  return useQuery({
+    queryKey: ['profile-stats', slug],
+    queryFn: () =>
+      fetch(`/api/profile/${slug}/stats`).then(r => r.json()),
+    staleTime: 1000 * 60,
+  });
+}
+```
+
+`QueryClientProvider` is mounted once in `App.tsx`.
+
+Do not use React Query for manifest loading. The manifest is a static file loaded once with a plain `fetch` inside `availability.ts`. It does not need caching, refetching, or loading states.
+
+Do not introduce additional React Query hooks until a second async data requirement exists.
+
+---
+
+## Manifest Consumption
+
+`generated/combinations.json` is a static file served from the CDN. It is the source of truth for which combinations are available and their metadata.
+
+**How it is consumed:**
+
+```typescript
+// src/pages/configure/availability.ts
+let manifest: Manifest | null = null;
+
+async function loadManifest(): Promise<Manifest> {
+  if (!manifest) {
+    manifest = await fetch('/combinations.json').then(r => r.json());
+  }
+  return manifest;
+}
+
+export async function isAvailable(
+  printer: string,
+  material: string,
+  nozzle: string,
+  goal: string,
+): Promise<boolean> {
+  const m = await loadManifest();
+  return m.combinations.some(
+    c => c.printer === printer && c.material === material &&
+         c.nozzle === nozzle && c.goal === goal && c.isAvailable,
+  );
+}
+```
+
+The manifest is loaded once on the Configure page and held in a module-level variable. There is no TanStack Query wrapper for it and no React state. It is a static file — a `fetch` with a module-level cache is sufficient.
+
+---
+
+## API Boundaries
+
+Two runtime endpoints exist at MVP:
+
+| Endpoint | Method | Called from | Notes |
+|---|---|---|---|
+| `/combinations.json` | GET (static) | `availability.ts` | Served from CDN — not a server route |
+| `/api/profile/:slug/stats` | GET | `useProfileStats` | Returns `{ confidenceCount: number }` |
+| `/api/feedback` | POST | `FeedbackPrompt` | Returns `{ ok: true }` |
+
+**There is no `api` module abstraction.** Two endpoints do not justify a typed wrapper. Calls are made with plain `fetch` at the call site. If a third endpoint is added and the pattern repeats, extract then.
+
+**There is no `/api/generate` endpoint at MVP.** Slug construction happens client-side in `CombinationForm`. The slug is deterministic: `[printer]-[material]-[nozzle]-[goal]`. The form validates against the manifest client-side before navigating.
+
+---
+
+## Component Organization
+
+Components inside a page directory are colocated with their page. They are peers of the page component — they change together.
+
+```
+// ✅ — colocated, changed together
+src/pages/configure/CombinationForm.tsx
+src/pages/configure/PrinterSelector.tsx
+src/pages/configure/availability.ts
+
+// ❌ — no features/ directory
+src/features/configure/components/CombinationForm.tsx
+```
+
+A component moves to `src/shared/` only when it has zero domain knowledge. `SegmentedSelector` receives `options` and `value` — it does not know what materials are. `SearchableDropdown` receives an `items` array — it does not know what printers are. Domain binding happens in `MaterialSelector.tsx` and `PrinterSelector.tsx`.
+
+If a component is only used in one place and contains product logic, it stays in its page directory. The refactor to shared is cheap when the time comes.
+
+---
+
+## File Naming
+
+| What | Convention |
+|---|---|
+| Page components | `PascalCase.tsx` (`ConfigurePage.tsx`) |
+| Feature components | `PascalCase.tsx` (`CombinationForm.tsx`) |
+| Shared components | `PascalCase.tsx` (`SegmentedSelector.tsx`) |
+| Hooks | `use` + `PascalCase.ts` (`useProfileStats.ts`) |
+| Pure utilities | `camelCase.ts` (`slug.ts`, `url-params.ts`) |
+| Non-UI modules | `camelCase.ts` (`availability.ts`) |
+| Tests | `<filename>.test.ts(x)` colocated |
+| Types file | `types.ts` (singular, at `src/types.ts`) |
+
+---
+
+## What Does NOT Exist at MVP
+
+This is a hard list. If an agent suggests any of the following, it is out of scope.
+
+| Pattern | Why it does not exist |
+|---|---|
+| `src/features/` | The project uses `src/pages/` — approved in `folder-structure.md` |
+| `src/store/` | No global store; Zustand is not installed |
+| `src/types/` directory | `src/types.ts` is a single file by explicit architectural decision |
+| Storybook | Not in the spec; not in any story |
+| `api.ts` per page/feature | Two direct `fetch` calls do not require an abstraction layer |
+| `src/lib/httpClient.ts` | Not needed; plain `fetch` is sufficient |
+| `POST /api/generate` | Client-side slug construction replaces it |
+| `forwardRef` | React 19 — `ref` is a prop |
+| Multiple `QueryClientProvider` instances | One, in `App.tsx` |
+
+---
+
+## Expansion Path After MVP
+
+When Phase 1 work begins, these are the expected structural changes and where they land:
+
+| Phase 1 addition | Where it goes |
+|---|---|
+| User accounts | New `src/pages/account/` route; Zustand slice added to `src/stores/` |
+| Stats API goes live | `useProfileStats` already exists — no structural change |
+| Additional shared components | `src/shared/` grows; no restructuring needed |
+| `src/types.ts` grows past ~150 lines | Split into `src/types/domain.ts`, `src/types/manifest.ts` — mechanical refactor |
+| Second shared hook | `src/hooks/` already exists — add alongside `useProfileStats` |
+| Slicer override UI | Add `SlicerOverride.tsx` to `src/pages/configure/` |
+
+No structural change is needed for Phase 1 unless user accounts are introduced. The current structure supports it without pre-emptive abstraction.

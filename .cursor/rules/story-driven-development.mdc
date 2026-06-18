@@ -1,0 +1,35 @@
+---
+description: Story-driven development — stay inside story scope, never implement multiple stories at once
+alwaysApply: true
+---
+
+# Story-Driven Development
+
+Implementation must follow the approved MVP stories in `docs/delivery/epic-mvp.md`.
+
+## For every task, state:
+
+1. **Story** — which story ID is being implemented (e.g. S-1.1)
+2. **Acceptance criteria** — which criterion this task satisfies
+3. **Definition of Done** — what "complete" looks like for this story
+
+## Scope rules
+
+- Implement one story at a time
+- Do not implement acceptance criteria from a future story to "get ahead"
+- Do not add code that is not required by the current story's acceptance criteria
+
+## When scope expands
+
+If a request, a design decision, or a discovered dependency would require implementing work outside the current story's acceptance criteria:
+
+1. Stop
+2. Name the scope increase explicitly: "This requires [X], which is [story ID] scope"
+3. Propose it as a separate story or defer it to its existing story
+4. Do not proceed until the scope boundary is agreed
+
+## What is never acceptable
+
+- "While I'm here, I'll also add…"
+- Implementing S-1.3 logic during S-1.1
+- Adding a dependency "for later" with no current acceptance criterion that requires it

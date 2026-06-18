@@ -1,0 +1,498 @@
+---
+description: Coding standards — TypeScript, component design, readability, SOLID, accessibility, and anti-patterns for React 19 + TypeScript
+alwaysApply: true
+---
+
+# Coding Standards
+
+Covers code-level decisions only. For folder structure and state patterns see `frontend-architecture.mdc`. For workflow and review gates see `workflow.mdc`.
+
+**Rule precedence (full chain):** `story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` → `coding-standards.mdc` (this file) → `frontend-architecture.mdc` → `testing.mdc`. When two rules conflict, the higher rule wins.
+
+---
+
+## TypeScript
+
+### Annotate where the type is not obvious; infer where it is
+
+```typescript
+// ✅ Infer — self-evident
+const count = 0;
+const label = 'Active alerts';
+
+// ✅ Annotate — not inferrable from the right-hand side
+const severityOrder: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+// ❌ Redundant noise
+const count: number = 0;
+```
+
+### Always use `import type` for type-only imports
+
+Vite runs with `isolatedModules: true`. Type-only imports that are not marked `import type` cause build failures.
+
+```typescript
+// ✅
+import type { Alert, Severity } from '@/features/alerts/types';
+import { useAlerts } from '@/features/alerts';
+
+// ❌ Breaks isolatedModules builds
+import { Alert, Severity } from '@/features/alerts/types';
+```
+
+### Prefer `undefined` over `null`
+
+Use `null` only when an external API or DOM API returns it and you must match its shape. Internally, always use `undefined`. This prevents double-checks (`=== null || === undefined`) and aligns with how TypeScript optional properties work.
+
+```typescript
+// ✅
+type AlertDetail = {
+  resolvedAt?: string; // undefined when not resolved
+};
+
+// ❌ Internal use of null requires null-checks everywhere
+type AlertDetail = {
+  resolvedAt: string | null;
+};
+```
+
+### Model state as discriminated unions, not boolean flags
+
+Boolean flags produce illegal states. A component with `isLoading`, `isError`, `isEmpty`, and `isSuccess` has 16 theoretical combinations. A union makes illegal states unrepresentable.
+
+```typescript
+// ✅
+type AlertsState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'error'; error: Error }
+  | { status: 'success'; data: Alert[] };
+```
+
+### Exhaust every union — never let new variants fall through silently
+
+Whenever you switch or if-chain over a discriminated union, add an `assertNever` call on the default branch. This turns a missing case into a compile-time error, not a silent runtime no-op.
+
+```typescript
+// src/lib/assertNever.ts
+export function assertNever(value: never, message?: string): never {
+  throw new Error(message ?? `Unhandled case: ${JSON.stringify(value)}`);
+}
+
+// ✅ Adding a new Severity variant causes a compile error here immediately
+function getSeverityColor(severity: Severity): string {
+  switch (severity) {
+    case 'critical': return 'red';
+    case 'high':     return 'orange';
+    case 'medium':   return 'yellow';
+    case 'low':      return 'blue';
+    default:         return assertNever(severity);
+  }
+}
+```
+
+### Use branded types for entity IDs — provide a casting helper at the boundary
+
+Plain `string` IDs are interchangeable by the compiler. Brand them and cast once at the API boundary with a helper, not with `as` scattered across the codebase.
+
+```typescript
+// src/types/brands.ts
+type Brand<T, B> = T & { readonly __brand: B };
+
+export type AlertId = Brand<string, 'AlertId'>;
+export type OrgId   = Brand<string, 'OrgId'>;
+
+// Cast once when data enters the system (API response, URL param)
+export const toAlertId = (id: string): AlertId => id as AlertId;
+export const toOrgId   = (id: string): OrgId   => id as OrgId;
+
+// From here on, the types are enforced everywhere
+function dismissAlert(alertId: AlertId): Promise<void> {}
+```
+
+### Use `satisfies` to validate a shape without widening its type
+
+```typescript
+// ✅ All four members required — TypeScript errors if one is missing
+const severityConfig = {
+  critical: { color: 'red',    label: 'Critical' },
+  high:     { color: 'orange', label: 'High'     },
+  medium:   { color: 'yellow', label: 'Medium'   },
+  low:      { color: 'blue',   label: 'Low'      },
+} satisfies Record<Severity, { color: string; label: string }>;
+
+// severityConfig.critical.color is 'red', not string
+```
+
+### No `any`. No unsafe `as`. Use `unknown` and narrow.
+
+`any` disables type checking downstream. Unsafe `as` (asserting a type that hasn't been proven) is `any` in disguise. Both are banned.
+
+```typescript
+// ✅ Safe narrowing
+function parseApiError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'An unexpected error occurred';
+}
+
+// ✅ The only acceptable use of `as`: narrowing after a runtime check
+const input = document.getElementById('search');
+if (!(input instanceof HTMLInputElement)) throw new Error('Expected input element');
+const value = (input as HTMLInputElement).value; // compiler can't narrow this without the cast
+
+// ❌
+const value = (document.getElementById('search') as HTMLInputElement).value; // unguarded
+function parseApiError(error: any): string { return error.message; }
+```
+
+---
+
+## Naming
+
+Names are the primary documentation for AI agents and future maintainers.
+
+| What | Convention | Why |
+|---|---|---|
+| Functions | `verb + noun` — `fetchAlerts`, `dismissAlert` | Reads as an action |
+| Booleans | `is/has/can/should` prefix | Reads as a yes/no question |
+| Event handlers | `handle` prefix — `handleDismiss` | Distinguishes internal handler from the prop |
+| Callback props | `on` prefix — `onDismiss` | Mirrors native DOM events |
+| Module-level constants | `SCREAMING_SNAKE_CASE` | Signals "fixed and intentional" |
+| Async functions | Suffix with the intent, not the mechanism — `loadAlerts`, not `fetchAlertsAsync` | The `async` keyword already marks it async |
+
+---
+
+## Functions
+
+### Single Responsibility: if "and" describes it, split it
+
+```typescript
+// ✅
+function formatSeverityLabel(severity: Severity): string { ... }
+function getSeverityColor(severity: Severity): string { ... }
+
+// ❌
+function getSeverityLabelAndColor(severity: Severity) { ... }
+```
+
+### Prefer `async/await` over `.then()` chains
+
+Consistent. Easier to read, easier to debug, easier for AI agents to generate correct error handling.
+
+```typescript
+// ✅
+async function loadAlerts(orgId: OrgId): Promise<Alert[]> {
+  try {
+    const response = await api.getAlerts(orgId);
+    return response.data;
+  } catch (error) {
+    throw new AlertLoadError('Failed to load alerts', { cause: error });
+  }
+}
+
+// ❌ Mixed styles within a file
+api.getAlerts(orgId).then(r => r.data).catch(handleError);
+```
+
+### Early returns over nested conditions
+
+```typescript
+// ✅
+function getAlertMessage(alert: Alert | undefined): string {
+  if (!alert) return 'No alert selected';
+  if (alert.status === 'resolved') return 'This alert has been resolved';
+  return alert.message;
+}
+```
+
+### One level of abstraction per function
+
+A function that orchestrates calls should not also contain implementation details. Extract low-level logic into named helpers.
+
+```typescript
+// ❌ Mixes orchestration with implementation
+async function processAlerts(orgId: OrgId) {
+  const response = await fetch(`/api/orgs/${orgId}/alerts`);
+  const json = await response.json();
+  const alerts = json.data.filter((a: Alert) => a.status !== 'resolved');
+  alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  return alerts;
+}
+
+// ✅ Orchestrates named steps — each step can be tested and read independently
+async function processAlerts(orgId: OrgId) {
+  const raw = await fetchAlerts(orgId);
+  const active = filterResolved(raw);
+  return sortBySeverity(active);
+}
+```
+
+---
+
+## Component Design
+
+### Extend the underlying HTML element's props
+
+Every component should accept and forward the props of its underlying element. This enables `className`, `data-testid`, ARIA overrides, and ref forwarding without adding explicit props.
+
+```typescript
+// ✅
+type AlertCardProps = React.ComponentPropsWithoutRef<'article'> & {
+  severity: Severity;
+  title: string;
+  issuedAt: string;
+};
+
+export function AlertCard({ severity, title, issuedAt, className, ...rest }: AlertCardProps) {
+  return (
+    <article className={cn('alert-card', className)} {...rest}>
+      ...
+    </article>
+  );
+}
+
+// ❌ Closed — cannot add data-testid, className, or ARIA props without a PR
+type AlertCardProps = {
+  severity: Severity;
+  title: string;
+  issuedAt: string;
+};
+```
+
+### Narrow the domain contract; open the HTML contract
+
+Pass only domain data as named props. Let native attributes flow through the spread. Do not pass full domain objects when only 2–3 fields are needed.
+
+```typescript
+// ❌ Couples component to the entire Alert shape
+type AlertCardProps = { alert: Alert };
+
+// ✅
+type AlertCardProps = React.ComponentPropsWithoutRef<'article'> & {
+  severity: Severity;  // 3 domain props, not 1 fat object
+  title: string;
+  issuedAt: string;
+};
+```
+
+### Composition over configuration
+
+Use slot-style composition when a component needs to render variable content. Prefer this over adding props for every new variant. The signal is not prop count — it is whether the props still describe a single coherent concern.
+
+```typescript
+// ✅ Composition — caller controls layout
+<Card>
+  <Card.Header>Critical Alerts</Card.Header>
+  <Card.Body><AlertList alerts={alerts} /></Card.Body>
+</Card>
+
+// ❌ New variant = new prop, indefinitely
+<Card title="Critical Alerts" showBorder hasShadow isCompact footerAction={<Button />} />
+```
+
+### React 19: `ref` is a prop — do not use `forwardRef`
+
+```typescript
+// ✅
+export function TextInput({ ref, ...props }: React.ComponentProps<'input'>) {
+  return <input ref={ref} {...props} />;
+}
+
+// ❌ React 18 pattern — removed in React 19
+export const TextInput = React.forwardRef<HTMLInputElement, Props>((props, ref) => ...);
+```
+
+### Derive, don't synchronize
+
+Never copy props into state. Derive from props directly.
+
+```typescript
+// ✅
+function AlertList({ alerts }: { alerts: Alert[] }) {
+  const criticalAlerts = alerts.filter(a => a.severity === 'critical');
+}
+
+// ❌ Stale mirror of prop
+function AlertList({ alerts }: { alerts: Alert[] }) {
+  const [criticalAlerts, setCriticalAlerts] = useState(
+    alerts.filter(a => a.severity === 'critical')
+  );
+}
+```
+
+### Always use stable, meaningful `key` props in lists
+
+Never use array index as a key. Use the entity's stable ID.
+
+```typescript
+// ✅
+alerts.map(alert => <AlertCard key={alert.id} ... />)
+
+// ❌ Index-as-key breaks reconciliation when items are reordered or removed
+alerts.map((alert, i) => <AlertCard key={i} ... />)
+```
+
+---
+
+## Hooks
+
+### One hook, one concern
+
+A hook that fetches data AND manages local UI state is two hooks. The line: if the hook's return value would make sense as a named type, it is probably one concern. If the return value is an unrelated mixture, split it.
+
+```typescript
+// ✅ One concern each — useAlerts always takes a branded OrgId parameter
+const { data, isPending, isError } = useAlerts(orgId);     // data fetching
+const { isOpen, open, close } = useDisclosure();            // UI state
+
+// ❌ One hook doing both — untestable in isolation
+const { data, isPending, isOpen, open, close } = useAlertsWithPanel(orgId);
+```
+
+### Use `useEffect` only for external synchronization
+
+`useEffect` syncs React state with something outside React: a timer, a WebSocket, a DOM API, a third-party library. It is not for computing derived values or responding to user events.
+
+```typescript
+// ✅ External sync — DOM title must stay in sync with data
+useEffect(() => {
+  document.title = `${criticalCount} critical alerts`;
+}, [criticalCount]);
+
+// ❌ Derived state — compute directly
+const [criticalCount, setCriticalCount] = useState(0);
+useEffect(() => {
+  setCriticalCount(alerts.filter(a => a.severity === 'critical').length);
+}, [alerts]);
+```
+
+### `useMemo` and `useCallback`: distinguish calculation cost from referential stability
+
+There are two separate reasons to memoize. Apply the right test for each.
+
+| Reason | When to use | Test |
+|---|---|---|
+| **Expensive calculation** | Only after profiling shows a real cost | Does this run in >1ms? Measure first. |
+| **Referential stability** | When the value is a `useEffect` dependency or a prop to a memoized child | Would removing this cause an infinite loop or redundant re-render? |
+
+```typescript
+// ✅ Referential stability — must be stable or useEffect runs on every render
+const queryParams = useMemo(() => ({ orgId, status: 'active' }), [orgId]);
+useEffect(() => { fetchAlerts(queryParams); }, [queryParams]);
+
+// ✅ Callback stability — passed to a memoized child
+const handleDismiss = useCallback((id: AlertId) => dismiss(id), [dismiss]);
+
+// ❌ Memoizing a trivial calculation — overhead exceeds any benefit
+const label = useMemo(() => severity.toUpperCase(), [severity]);
+```
+
+### Type event handlers explicitly
+
+Never use `any` on event parameters. Use React's built-in event types.
+
+```typescript
+// ✅
+function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+  setValue(event.target.value);
+}
+
+function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+  submitForm();
+}
+
+// ❌
+function handleChange(e: any) { setValue(e.target.value); }
+```
+
+---
+
+## Accessibility
+
+### Semantic HTML is the baseline — ARIA augments, it does not replace
+
+Every interactive element must be a native interactive element. If you use `<div>` or `<span>` with an `onClick`, you own focus management, keyboard handling, and role announcement.
+
+```typescript
+// ✅
+<button onClick={handleDismiss}>Dismiss</button>
+
+// ❌ You now must add tabIndex, onKeyDown, role, and aria-label manually
+<div onClick={handleDismiss}>Dismiss</div>
+```
+
+### Required on every interactive component
+
+```typescript
+// Icon-only buttons: visible label via aria-label
+<button aria-label="Dismiss alert: Exposed API key">
+  <XIcon aria-hidden="true" />
+</button>
+
+// Form inputs: always associated with a label
+<label htmlFor="severity-filter">Filter by severity</label>
+<select id="severity-filter" value={severity} onChange={handleChange} />
+
+// Loading state: use visually-hidden text in a live region, not an empty string
+// An empty live region on some screen readers announces "blank" — use a hidden span
+<span role="status" aria-live="polite" className="sr-only">
+  {isPending ? 'Loading alerts, please wait.' : 'Alerts loaded.'}
+</span>
+```
+
+### Color is an enhancement, never the only signal
+
+Every severity level must carry a text label, an icon, or a pattern — not only a color. Users with color blindness must be able to distinguish `critical` from `low`.
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | Risk | Instead |
+|---|---|---|
+| `as T` without a prior runtime check | Silent type unsafety — runtime explosion | Type guard or `assertNever` |
+| Array index as list key | Broken reconciliation on sort/delete | Stable entity ID |
+| `console.log` committed | Leaks internal data; noisy in production | Remove or use structured logger |
+| `// eslint-disable` | Silences a rule that exists for a reason | Fix the root cause |
+| Nested ternaries (3+) | Unreadable; AI agents get them wrong | `if/else` or `switch` |
+| Prop drilling beyond 2 levels for domain data | Invisible coupling | React context scoped to the feature |
+| Prop drilling beyond 2 levels for UI state | Same coupling, different layer | Zustand slice |
+| `.then()` mixed with `async/await` | Inconsistent; error handling gaps | `async/await` throughout |
+
+---
+
+## Comments and JSDoc
+
+### Comments explain why, not what
+
+```typescript
+// ❌ Narrates the obvious
+// Filter by severity
+const criticalAlerts = alerts.filter(a => a.severity === 'critical');
+
+// ✅ Explains a non-obvious constraint
+// The API returns resolved alerts for 24h post-resolution for audit purposes.
+// Exclude them here to avoid inflating the active alert count in the dashboard.
+const activeAlerts = alerts.filter(a => a.status !== 'resolved');
+```
+
+### JSDoc on every exported function and component
+
+Document **intent**, **non-obvious parameters**, and **edge cases**. Do not restate what the name already says.
+
+```typescript
+// ❌ Zero additional information
+/** Returns the alert message. */
+function getAlertMessage(alert: Alert | undefined): string {}
+
+// ✅ Documents the non-obvious
+/**
+ * Returns a human-readable message for an alert.
+ * Returns a fallback string for undefined — safe to call before data loads.
+ * Resolved alerts return a fixed message regardless of their original content
+ * to avoid surfacing stale or sensitive text in the UI.
+ */
+function getAlertMessage(alert: Alert | undefined): string {}
+```

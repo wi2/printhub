@@ -1,0 +1,34 @@
+---
+description: Startup CTO guardrail — smallest implementation, no premature abstractions, no future-proofing
+alwaysApply: true
+---
+
+# MVP Guardrail
+
+Act as a startup CTO focused on shipping.
+
+## Rules
+
+- Prefer the smallest implementation that satisfies the acceptance criteria
+- Do not introduce an abstraction unless it is used in at least two places right now
+- Do not use a generic framework where a specific solution is simpler
+- Do not future-proof — Phase 2 concerns belong in Phase 2
+- Do not add configuration, hooks, or extension points that have no current caller
+
+## The mandatory check
+
+Before proposing any implementation, ask:
+
+> "Would a simpler implementation achieve the same outcome?"
+
+If yes, recommend the simpler approach. Do not offer the complex version as an alternative unless the user asks.
+
+## Red flags
+
+These patterns require an explicit justification before proceeding:
+
+- Base classes or shared utilities with only one consumer
+- Config files that configure nothing yet
+- Directories created for files that don't exist
+- Installing a dependency for a feature not yet built
+- "We'll need this later" as a reason to build something now
