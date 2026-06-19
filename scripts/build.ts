@@ -29,6 +29,7 @@ import { serialize as serializeBambuOrca } from './serializers/bambu-orca.js';
 import type { LayerSchema, GuardrailBounds } from './engine/types.js';
 import { PRINTERS } from '../src/types.js';
 import type { ManifestEntry, Combination } from '../src/types.js';
+import { HIGHLIGHTS } from './highlights.js';
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -188,6 +189,11 @@ function run(): void {
       downloadPath = `/profiles/bambu-orca/${slug}.3mf`;
     }
 
+    const highlights = HIGHLIGHTS[slug];
+    if (!highlights) {
+      throw new Error(`Missing authored highlights for launch combination: ${slug}`);
+    }
+
     manifest.push({
       slug,
       printer: spec.printer,
@@ -197,12 +203,7 @@ function run(): void {
       isAvailable: true,
       slicerFormat,
       downloadPath,
-      // Placeholder highlights — replaced with authored sentences in S-3.5.
-      highlights: [
-        `Profile optimised for ${spec.printer} printing ${spec.material.toUpperCase()}.`,
-        `Layer height: ${resolved['layerHeight']}mm. Print speed: ${resolved['printSpeed']}mm/s.`,
-        `Nozzle: ${resolved['nozzleDiameter']}mm. Bed temp: ${resolved['bedTemp']}°C.`,
-      ],
+      highlights,
     });
 
     console.log(`  OK   ${slug} (${slicerFormat})`);
