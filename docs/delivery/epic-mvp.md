@@ -547,6 +547,8 @@ This milestone has two parallel workstreams: **operational** (physical print tes
 
 > As a domain expert, I want all Bambu A1 Mini and Bambu X1C launch combinations physically test-printed, so that profiles shown to users are backed by at least one successful real-world print.
 
+**Status:** Deferred per [ADR-003](../decisions/adr-003-deferred-physical-validation.md). Tracked as PV-1 until hardware access is available.
+
 **Note:** This is an operational story. It requires access to a Bambu A1 Mini and a Bambu X1C printer. Each print must use a standard benchmark model (Benchy or calibration cube). Results are recorded in the combination validation runbook (`docs/delivery/combination-validation-runbook.md`).
 
 **Acceptance criteria**
@@ -562,6 +564,8 @@ This milestone has two parallel workstreams: **operational** (physical print tes
 
 > As a domain expert, I want all Prusa MK4, Creality Ender 3 V3 SE, and Creality K1 launch combinations physically test-printed.
 
+**Status:** Deferred per [ADR-003](../decisions/adr-003-deferred-physical-validation.md). Tracked as PV-2 until hardware access is available.
+
 **Acceptance criteria**
 - [ ] All 4 Prusa MK4 launch combinations have been printed and recorded
 - [ ] All 4 Creality Ender 3 V3 SE launch combinations have been printed and recorded
@@ -574,6 +578,8 @@ This milestone has two parallel workstreams: **operational** (physical print tes
 ### S-5.6 — Pre-launch checklist sign-off
 
 > As a team, we want every item on the pre-launch checklist verified and signed off, so that nothing that was specified as a launch requirement is shipped broken.
+
+**Status:** Blocked on PV-1 and PV-2 (physical validation) per [ADR-003](../decisions/adr-003-deferred-physical-validation.md).
 
 **Acceptance criteria**
 
@@ -611,6 +617,22 @@ S-1.3 Skeleton       S-2.3 Validator         S-3.3 Availability      S-4.3 Wire 
                      S-2.8 Bambu/Orca ser.   S-3.9 URL pre-fill
                      S-2.9 Build + manifest
 ```
+
+---
+
+## Post-M5: Physical Validation (PV)
+
+Engineering milestones M1–M5 are complete. Physical validation is deferred until launch printers are available. See [ADR-003](../decisions/adr-003-deferred-physical-validation.md).
+
+Launch combinations may be marked `THEORETICALLY_VALID` (engineering validation only) or `PHYSICALLY_VALIDATED` (documented test print on target hardware). All 20 launch combinations are `THEORETICALLY_VALID` at the time of ADR-003 acceptance.
+
+### PV-1 — Physical validation: Bambu combinations
+
+Same scope and acceptance criteria as S-5.4. Executes when Bambu A1 Mini and Bambu X1C hardware access is available.
+
+### PV-2 — Physical validation: Prusa and Creality combinations
+
+Same scope and acceptance criteria as S-5.5. Executes when Prusa MK4, Creality Ender 3 V3 SE, and Creality K1 hardware access is available.
 
 ---
 

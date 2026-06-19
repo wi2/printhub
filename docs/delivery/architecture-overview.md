@@ -1,6 +1,6 @@
 # PrintHub Architecture Overview
 
-Technical architecture reference for maintainers. Engineering milestones M1–M5 are complete; physical validation and launch sign-off remain.
+Technical architecture reference for maintainers. Engineering milestones M1–M5 are complete; physical validation and launch sign-off remain (see [ADR-003](../decisions/adr-003-deferred-physical-validation.md)).
 
 ---
 
@@ -227,6 +227,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | **Layered parameter system** | Separates concerns by domain (hardware, material, goal, nozzle); enables per-printer balanced speeds without per-combination authoring | [ADR-002](../decisions/adr-002-layer-ownership.md) |
 | **Pre-generated profiles** | Profiles are build-time artifacts, not runtime computations. Deterministic, auditable, and safe to cache on CDN. | `scripts/build.ts` |
 | **Guardrail validation** | Four critical parameters checked against material/printer-specific bounds before a combination enters the manifest. Failed combinations are skipped, not shipped. | `scripts/engine/validate.ts` |
+| **Deferred physical validation** | M5 engineering is complete; launch profiles pass automated validation only (`THEORETICALLY_VALID`). Real-hardware test prints (`PHYSICALLY_VALIDATED`) are deferred until printer access is available. | [ADR-003](../decisions/adr-003-deferred-physical-validation.md) |
 | **No database for MVP** | Manifest is a static JSON file; feedback is a JSON file store. No Postgres, SQLite, or Redis at launch. | `server/store.ts` |
 
 ---
@@ -237,7 +238,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 |---|---|---|
 | **File-based feedback storage** | No concurrent write safety at scale; no query API for analytics | Swap `createFileFeedbackStore` for SQLite when volume requires it |
 | **Quality goal not yet available** | Only Balanced goal is in the launch manifest (20 combinations). Quality layer exists but is not built or validated. | Add to build list after physical validation |
-| **Physical validation required before launch** | Engineering is complete (M1–M5); profiles are not launch-ready until 20 physical test prints pass (S-5.4, S-5.5) | `combination-validation-runbook.md` (to be written) |
+| **Physical validation deferred** | Engineering is complete (M1–M5); all 20 launch combinations are `THEORETICALLY_VALID` only. Launch is blocked until physical test prints pass (PV-1, PV-2; originally S-5.4, S-5.5) | [ADR-003](../decisions/adr-003-deferred-physical-validation.md), `combination-validation-runbook.md` (to be written) |
 | **CSR — no SEO on profile pages** | Profile content not in initial HTML; search engines that do not execute JS will not index highlights | Revisit SSG (e.g. `vite-ssg`) before Phase 1 scale |
 | **Static confidence count** | Stats API deferred; all profiles show "be the first to report results" | Wire `GET /api/profile/:slug/stats` post-launch |
 | **Guardrail scope** | Only four parameters validated; other settings rely on layer authoring discipline | Expand guarded params in Phase 1 if needed |
@@ -252,4 +253,5 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | [epic-mvp.md](./epic-mvp.md) | Story scope and acceptance criteria |
 | [ADR-001](../decisions/adr-001-rendering-strategy.md) | CSR vs SSG decision |
 | [ADR-002](../decisions/adr-002-layer-ownership.md) | Parameter ownership by layer type |
+| [ADR-003](../decisions/adr-003-deferred-physical-validation.md) | Engineering vs physical validation; launch readiness |
 | [README.md](../../README.md) | Project overview and commands |

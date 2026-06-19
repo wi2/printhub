@@ -14,7 +14,7 @@ The current implementation uses Vite with React Router — a client-side renderi
 
 Two factors shape this decision:
 
-1. **Launch blocker is physical, not technical.** The critical path to launch is 20 physical test prints across 5 printers (S-5.4, S-5.5). Engineering work in M2–M4 is expected to complete before that validation finishes. Adding SSG framework integration is additional engineering work that does not shorten the physical validation schedule.
+1. **Launch blocker is physical, not technical.** The critical path to launch is 20 physical test prints across 5 printers (S-5.4, S-5.5 — deferred as PV-1, PV-2 per [ADR-003](./adr-003-deferred-physical-validation.md)). Engineering work in M2–M4 is expected to complete before that validation finishes. Adding SSG framework integration is additional engineering work that does not shorten the physical validation schedule.
 
 2. **SEO benefit requires sustained traffic, not launch volume.** Profile pages earn search ranking over weeks and months. The value of SSG is realized at Phase 1 scale — when 60–200+ combinations exist, when the domain has authority, and when organic search becomes a meaningful acquisition channel. At MVP with 20 combinations and no domain history, the SEO delta between CSR and SSG is immaterial.
 
