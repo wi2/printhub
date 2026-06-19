@@ -26,6 +26,7 @@ import { resolve as resolveLayers } from './engine/resolve.js';
 import { validate } from './engine/validate.js';
 import { serialize as serializePrusaSlicer } from './serializers/prusaslicer.js';
 import { serialize as serializeBambuOrca } from './serializers/bambu-orca.js';
+import { publishGeneratedToPublic } from './publish-generated.js';
 import type { LayerSchema, GuardrailBounds } from './engine/types.js';
 import { PRINTERS } from '../src/types.js';
 import type { ManifestEntry, Combination } from '../src/types.js';
@@ -214,8 +215,11 @@ function run(): void {
   const manifestPath = join(GENERATED_DIR, 'combinations.json');
   writeFileSync(manifestPath, JSON.stringify({ combinations: manifest }, null, 2), 'utf-8');
 
+  publishGeneratedToPublic(ROOT);
+
   console.log(`\nBuild complete: ${built} built, ${skipped} skipped (guardrail violations).`);
   console.log(`Manifest: ${manifestPath}`);
+  console.log(`Published static assets to public/ for Vite dev and production builds.`);
 
   if (skipped > 0) {
     process.exit(0); // Skipped combinations are logged, not a fatal error.

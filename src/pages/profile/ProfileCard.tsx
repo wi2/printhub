@@ -1,9 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ManifestEntry } from '../../types';
 import { PRINTERS, MATERIALS, NOZZLE_SIZES, GOALS } from '../../types';
 import { DownloadButton } from './DownloadButton';
 import { ImportGuide } from './ImportGuide';
 import { FeedbackPrompt } from './FeedbackPrompt';
+
+/**
+ * Fades and slides the import guide into view on first download.
+ * Uses a one-frame delay so the CSS transition runs after mount.
+ */
+function ImportGuideReveal({ children }: { children: React.ReactNode }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translateY(0)' : 'translateY(-0.5rem)',
+        transition: 'opacity 0.3s ease, transform 0.3s ease',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * Constructs the profile page title by mapping manifest entry IDs to their
@@ -59,10 +84,10 @@ export function ProfileCard({ entry }: ProfileCardProps) {
       </div>
 
       {showImportGuide && (
-        <>
+        <ImportGuideReveal>
           <p role="status">Download started</p>
           <ImportGuide slicerFormat={entry.slicerFormat} />
-        </>
+        </ImportGuideReveal>
       )}
 
       <FeedbackPrompt />

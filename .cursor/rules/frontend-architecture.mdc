@@ -99,10 +99,11 @@ The URL is the single source of truth for the current combination.
 | Form inputs (4 values) | `CombinationForm` local state | Initialized from URL query params on mount |
 | Slicer format | Derived from printer in `CombinationForm` | Not shown in the UI at MVP |
 | Combination manifest | Module-level cache in `availability.ts` | One fetch per page load; never re-fetched |
-| Profile static data (title, highlights, file path) | Embedded in the page via SSG | Never fetched at runtime |
-| Confidence count | TanStack Query — `useProfileStats(slug)` | Fetched on mount; does not block render |
-| `hasDownloaded` | `DownloadButton` local state | Drives `ImportGuide` and `FeedbackPrompt` visibility |
-| Feedback outcome | `FeedbackPrompt` local state | Shows confirmation on submit |
+| Profile static data (title, highlights, file path) | Fetched from manifest at runtime on Profile page | Served as static JSON from `/combinations.json` |
+| Confidence count | Static placeholder at MVP | Stats API deferred post-launch (Cut 2) — shows "New profile — be the first to report results" |
+| `showImportGuide` | `ProfileCard` local state | Set via `DownloadButton` `onDownloadStarted` callback on first download |
+| Feedback prompt | Always rendered on Profile page | Visible on page load per S-3.8; not gated by download |
+| Feedback outcome | `FeedbackPrompt` local state | Shows confirmation on submit; API wired in M4 |
 
 **There is no global store.** Zustand is not installed and is not used at MVP. If a component needs state, it owns it locally. The conditions for a global store — shared UI state across multiple routes, user account state — do not exist at MVP.
 

@@ -1,6 +1,10 @@
 # Generated artifacts — never edited by hand
 generated/
 
+# Profile build output copied for Vite static serving
+public/combinations.json
+public/profiles/
+
 # Build output
 dist/
 
