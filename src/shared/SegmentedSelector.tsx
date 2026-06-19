@@ -15,6 +15,8 @@ type SegmentedSelectorProps = Omit<React.ComponentPropsWithoutRef<'fieldset'>, '
   onChange: (id: string) => void;
   /** Used as the <legend> text and as the accessible group name. */
   legend: string;
+  /** Option ids that should be rendered as disabled (non-interactive, visually greyed). */
+  disabledIds?: readonly string[];
 };
 
 /**
@@ -27,6 +29,7 @@ export function SegmentedSelector({
   value,
   onChange,
   legend,
+  disabledIds,
   style,
   ...rest
 }: SegmentedSelectorProps) {
@@ -41,6 +44,7 @@ export function SegmentedSelector({
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {options.map(option => {
           const isSelected = option.id === value;
+          const isDisabled = disabledIds?.includes(option.id) ?? false;
           return (
             <label
               key={option.id}
@@ -50,9 +54,10 @@ export function SegmentedSelector({
                 padding: '0.5rem 1rem',
                 border: `1px solid ${isSelected ? '#111' : '#ccc'}`,
                 borderRadius: '4px',
-                cursor: 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 fontWeight: isSelected ? 600 : 400,
                 backgroundColor: isSelected ? '#f0f0f0' : '#fff',
+                opacity: isDisabled ? 0.4 : 1,
                 userSelect: 'none',
               }}
             >
@@ -63,6 +68,7 @@ export function SegmentedSelector({
                 value={option.id}
                 checked={isSelected}
                 onChange={() => onChange(option.id)}
+                disabled={isDisabled}
                 style={{
                   position: 'absolute',
                   width: '1px',
