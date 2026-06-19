@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MATERIALS, NOZZLE_SIZES, PRINTERS } from '../../types';
 import { isAvailable, isMaterialAvailable, isNozzleAvailable } from './availability';
 import { buildSlug } from '../../lib/slug';
+import { parseConfigureParams } from '../../lib/url-params';
 import { PrinterSelector } from './PrinterSelector';
 import { MaterialSelector } from './MaterialSelector';
 import { NozzleSelector } from './NozzleSelector';
@@ -19,9 +20,12 @@ const SUBMIT_DELAY_MS = 800;
  * S-3.4: on submit, verifies the full combination exists in the manifest,
  * applies an 800ms delay, then navigates to /profile/[slug]. Shows an
  * inline error if the combination is not in the manifest.
+ *
+ * S-3.9: pre-fills inputs from URL query params on mount via parseConfigureParams.
  */
 export function CombinationForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [printer, setPrinter] = useState<string | undefined>(undefined);
   const [material, setMaterial] = useState<string | undefined>(undefined);
@@ -32,6 +36,14 @@ export function CombinationForm() {
   const [nozzleMessage, setNozzleMessage] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const prefilled = parseConfigureParams(searchParams);
+    if (prefilled.printer !== undefined) setPrinter(prefilled.printer);
+    if (prefilled.material !== undefined) setMaterial(prefilled.material);
+    if (prefilled.nozzle !== undefined) setNozzle(prefilled.nozzle);
+    if (prefilled.goal !== undefined) setGoal(prefilled.goal);
+  }, [searchParams]);
 
   // Derived — Bambu printers → 'bambu-orca', Prusa/Creality → 'prusaslicer'.
   // Not shown to users; consumed in S-3.7.

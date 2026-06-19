@@ -40,9 +40,9 @@ function renderForm() {
 }
 
 /** Renders the form with a full router so navigation can be asserted. */
-function renderFormWithRouter() {
+function renderFormWithRouter(initialEntry = '/configure') {
   render(
-    <MemoryRouter initialEntries={['/configure']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/configure" element={<CombinationForm />} />
         <Route path="/profile/:slug" element={<div>profile-page</div>} />
@@ -333,5 +333,55 @@ describe('CombinationForm', () => {
       );
       expect(screen.queryByText('profile-page')).not.toBeInTheDocument();
     }, 3000);
+  });
+
+  describe('URL pre-fill (S-3.9)', () => {
+    it('pre-fills all four inputs from valid URL params', async () => {
+      renderFormWithRouter(
+        '/configure?printer=bambu-a1-mini&material=pla&nozzle=0.4&goal=balanced',
+      );
+
+      await waitFor(() =>
+        expect(screen.getByDisplayValue('Bambu Lab A1 Mini')).toBeInTheDocument(),
+      );
+      expect(screen.getByRole('radio', { name: 'PLA' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: '0.4mm' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Balanced' })).toBeChecked();
+    });
+
+    it('enables the generate button immediately when all four URL params are valid', async () => {
+      renderFormWithRouter(
+        '/configure?printer=bambu-a1-mini&material=pla&nozzle=0.4&goal=balanced',
+      );
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Generate profile' })).toBeEnabled(),
+      );
+    });
+
+    it('silently ignores an invalid printer param and leaves the printer field empty', async () => {
+      renderFormWithRouter(
+        '/configure?printer=nonexistent&material=pla&nozzle=0.4&goal=balanced',
+      );
+
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'PLA' })).toBeChecked());
+      expect(screen.getByRole('combobox', { name: 'Printer' })).toHaveValue('');
+      expect(screen.getByRole('button', { name: 'Generate profile' })).toBeDisabled();
+    });
+
+    it('pre-fills only the three valid params when one param is invalid', async () => {
+      renderFormWithRouter(
+        '/configure?printer=bambu-a1-mini&material=pla&nozzle=invalid&goal=balanced',
+      );
+
+      await waitFor(() =>
+        expect(screen.getByDisplayValue('Bambu Lab A1 Mini')).toBeInTheDocument(),
+      );
+      expect(screen.getByRole('radio', { name: 'PLA' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Balanced' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: '0.4mm' })).not.toBeChecked();
+      expect(screen.getByRole('radio', { name: '0.6mm' })).not.toBeChecked();
+      expect(screen.getByRole('button', { name: 'Generate profile' })).toBeDisabled();
+    });
   });
 });
