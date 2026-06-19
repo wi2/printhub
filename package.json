@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx scripts/dev.ts",
+    "dev:vite": "vite",
     "dev:server": "tsx server/index.ts",
     "build": "vite build",
     "prebuild": "npm run build:profiles",

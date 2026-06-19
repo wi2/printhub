@@ -4,18 +4,25 @@ import { fileURLToPath } from 'node:url';
 import { createFeedbackHandler } from './feedback.js';
 import { createManifestLookup, resolveManifestPath } from './manifest.js';
 import { createRateLimiter, type RateLimiter } from './rate-limit.js';
-import { createFeedbackStore, type FeedbackStore } from './store.js';
+import {
+  createFileFeedbackStore,
+  resolveFeedbackStorePath,
+  type FeedbackStore,
+} from './store.js';
+
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
  * PrintHub runtime API server entry point.
  *
- * Feedback store: in-memory array (see store.ts). Chosen over SQLite or Postgres
- * for zero operational overhead at MVP launch — records survive only for the
- * process lifetime. When persistent storage is required (e.g. post-launch stats
- * endpoint), swap createFeedbackStore() for a SQLite-backed implementation
- * without changing route handlers.
+ * Feedback store: JSON file at data/feedback.json (see store.ts). Chosen over
+ * SQLite or Postgres for zero dependency overhead at MVP — a single append-only
+ * JSON file satisfies durable storage for launch volume. Swap createFileFeedbackStore
+ * for SQLite when query volume or concurrent writes require it.
  */
-export const feedbackStore = createFeedbackStore();
+export const feedbackStore = createFileFeedbackStore(
+  process.env.FEEDBACK_STORE_PATH ?? resolveFeedbackStorePath(projectRoot),
+);
 
 export type AppServerOptions = {
   store?: FeedbackStore;
@@ -27,7 +34,6 @@ export type AppServerOptions = {
  * Creates the HTTP server with injectable dependencies for integration tests.
  */
 export function createAppServer(options: AppServerOptions = {}): Server {
-  const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
   const store = options.store ?? feedbackStore;
   const manifest = createManifestLookup(
     options.manifestPath ?? resolveManifestPath(projectRoot),
@@ -37,6 +43,12 @@ export function createAppServer(options: AppServerOptions = {}): Server {
 
   return createServer(async (req, res) => {
     const url = req.url?.split('?')[0];
+
+    if (req.method === 'GET' && url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('ok');
+      return;
+    }
 
     if (req.method === 'POST' && url === '/api/feedback') {
       await handleFeedback(req, res);

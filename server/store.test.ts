@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createFeedbackStore } from './store.js';
+import { createFeedbackStore, createFileFeedbackStore } from './store.js';
 
 describe('createFeedbackStore', () => {
   const store = createFeedbackStore();
@@ -61,5 +64,30 @@ describe('createFeedbackStore', () => {
     });
 
     expect(otherStore.countSuccessBySlug('bambu-a1-mini-pla-04mm-balanced')).toBe(0);
+  });
+});
+
+describe('createFileFeedbackStore', () => {
+  let tempDir: string;
+  let filePath: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'printhub-feedback-'));
+    filePath = join(tempDir, 'feedback.json');
+  });
+
+  it('persists records across store instances', () => {
+    const firstStore = createFileFeedbackStore(filePath);
+    firstStore.insert({
+      slug: 'bambu-a1-mini-pla-04mm-balanced',
+      outcome: 'success',
+      failureReasons: [],
+      submittedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const secondStore = createFileFeedbackStore(filePath);
+    expect(secondStore.countSuccessBySlug('bambu-a1-mini-pla-04mm-balanced')).toBe(1);
+
+    rmSync(tempDir, { recursive: true });
   });
 });
