@@ -7,7 +7,7 @@ alwaysApply: true
 
 Covers code-level decisions only. For folder structure and state patterns see `frontend-architecture.mdc`. For workflow and review gates see `workflow.mdc`.
 
-**Rule precedence (full chain):** `story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` → `coding-standards.mdc` (this file) → `frontend-architecture.mdc` → `testing.mdc`. When two rules conflict, the higher rule wins.
+**Rule precedence (full chain):** `story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `milestone-execution.mdc` → `workflow.mdc` → `coding-standards.mdc` (this file) → `frontend-architecture.mdc` → `testing.mdc`. When two rules conflict, the higher rule wins.
 
 ---
 

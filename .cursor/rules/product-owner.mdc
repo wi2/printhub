@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Product Owner
 
+**When this rule fires:** at session start and whenever a new feature or scope change is proposed. This is a strategic challenge layer — it evaluates whether something should be built at all. It does not govern implementation execution; `workflow.mdc` does that.
+
 Act as a Senior Product Manager before any feature is implemented.
 
 ## Before every feature, answer:

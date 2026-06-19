@@ -1,0 +1,169 @@
+---
+description: Milestone execution — story loop, milestone audit, domain expertise gate, commit policy
+alwaysApply: true
+---
+
+# Milestone Execution
+
+**Rule precedence (full chain):**
+`story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `milestone-execution.mdc` (this file) → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` → `testing.mdc`
+
+---
+
+## Purpose
+
+Define how a sequence of stories within a milestone is executed: reduce repetitive coordination overhead, preserve story-by-story validation, and prevent automatic advancement across story or milestone boundaries.
+
+**Relationship to `workflow.mdc`:** This rule owns the execution sequence (the 10-step loop) and all stopping conditions. `workflow.mdc` owns the content of steps 4–8 — architecture discussion, implementation quality, test standards, code review, and documentation. The two rules are complementary. When they address the same moment, this rule governs ordering and stopping; `workflow.mdc` governs quality and depth.
+
+---
+
+## Core Principles
+
+1. One story at a time. One commit per story.
+2. Never implement a later story while the current story is incomplete.
+3. Never cross a milestone boundary automatically — stop, audit, and wait.
+4. Every story must pass all its acceptance criteria before it is considered complete.
+5. Architecture decisions cannot be changed unless the story explicitly requires it.
+6. Scope expansion stops implementation immediately. The protocol for what happens next is in `story-driven-development.mdc` — that rule is the single authoritative source for scope boundaries and the expansion protocol.
+7. Stories in a domain expertise gate category pause for human review before any code is written.
+
+Principles 1 and 2 extend `story-driven-development.mdc`. Principle 6 defers to it entirely. When they conflict, `story-driven-development.mdc` governs.
+
+---
+
+## Story Execution Loop
+
+Follow this sequence for every story in an implementation session:
+
+1. **Audit** — State the current project state: what is built, what tests pass, what is missing.
+2. **Identify** — Name completed stories and the next incomplete story explicitly.
+3. **Scope** — Read only the documents relevant to that story.
+4. **Restate** — List the acceptance criteria verbatim before writing any code.
+5. **Implement** — Build only what the story requires. Apply `workflow.mdc` phases within this step.
+6. **Test** — Run required tests per `testing.mdc`.
+7. **Validate** — Check each acceptance criterion individually and report pass / partial / fail.
+8. **Report** — Produce a completion report (format below).
+9. **Commit** — Produce a recommended commit message (see Commit Policy).
+10. **Stop** — Wait for explicit user confirmation before advancing to the next story.
+
+Step 10 is mandatory. Self-advancement is not permitted.
+
+### Completion Report Format
+
+```
+## Story S-x.y — [Title]
+
+| Criterion | Status      | Notes |
+|-----------|-------------|-------|
+| AC-1      | ✅ Pass     |       |
+| AC-2      | ⚠️ Partial  | …     |
+| AC-3      | ✅ Pass     |       |
+
+Recommended commit: <type>(s-x.y): short imperative description
+Next story: S-x.z — [Title]
+Awaiting confirmation to proceed.
+```
+
+---
+
+## Milestone Audit
+
+When the final story of a milestone completes, produce a milestone audit before stopping. Do not begin the next milestone until the developer reviews the audit and confirms.
+
+### Audit Sections
+
+1. **Completed stories** — story ID and one-line status summary
+2. **Incomplete stories** — story ID and reason not completed
+3. **Acceptance criteria status** — aggregate pass / partial / fail across the milestone
+4. **Architecture divergences** — any deviation from decisions in `docs/decisions/` or `frontend-architecture.mdc`
+5. **Technical debt introduced** — debt created during this milestone only, not pre-existing
+6. **Risks for the next milestone** — what the current state makes harder or more likely to fail
+7. **Blockers** — anything that prevents the next milestone from starting
+8. **Recommended corrections** — what should be resolved before crossing the boundary
+
+### Severity Classification
+
+Every finding is labelled:
+
+- **Critical** — blocks the next milestone or invalidates accepted criteria
+- **High** — degrades quality or creates likely rework in the next phase
+- **Medium** — worth tracking; low immediate impact
+- **Low** — cosmetic or informational
+
+---
+
+## Domain Expertise Gate
+
+The following categories require a human review pause before implementation begins. Automatic execution is not permitted.
+
+| Category | Examples |
+|---|---|
+| Safety validation | Print parameter limits, thermal bounds, structural tolerances |
+| Physical testing | Layer adhesion, support removal, dimensional accuracy |
+| Hardware validation | Printer capability assumptions, nozzle wear, bed adhesion |
+| Parameter tuning | Default values for speed, temperature, retraction |
+| Business decisions | Pricing, launch timing, access control policy |
+| Architecture decisions | Changes to approved structures in `frontend-architecture.mdc` |
+| Launch approval | Any story gating a production deployment |
+
+When a story falls into a gate category:
+
+1. Name the category.
+2. List assumptions the implementation would rely on.
+3. List the risks if those assumptions are wrong.
+4. Stop. Do not write code.
+
+---
+
+## Commit Policy
+
+Every completed story produces exactly one recommended commit message. Milestone-level commits are not generated.
+
+### Format
+
+```
+<type>(s-x.y): short imperative description
+```
+
+### Rules
+
+- **Choose the type that best describes the story's output:**
+
+  | Type | Use when the story… |
+  |---|---|
+  | `feat` | Delivers user-visible behavior — a rendered page, an interactive input, a working button |
+  | `fix` | Corrects a defect in a previously delivered story |
+  | `test` | Adds or updates tests without changing production code |
+  | `chore` | Scaffolds infrastructure, defines types, configures build tooling — no user-visible change |
+  | `docs` | Updates documentation only |
+
+- Scope is always the story ID: `s-x.y`
+- Verb is imperative: `implement`, `add`, `scaffold`, `wire`, `generate`, `fix`
+- Total length is under 72 characters
+
+### Examples
+
+```
+feat(s-3.2): implement configure form inputs
+feat(s-2.2): implement layered parameter resolver
+feat(s-2.3): implement safety guardrail validator
+chore(s-1.1): scaffold vite project and test tooling
+chore(s-2.1): define engine-internal types
+fix(s-3.4): correct slug construction for 0.6mm nozzle
+```
+
+The developer commits. This rule recommends. Do not run `git commit` automatically.
+
+---
+
+## What This Rule Does Not Override
+
+This rule adds a sequencing, audit, and gate layer. It does not replace:
+
+| Rule | Still governs |
+|---|---|
+| `story-driven-development.mdc` | Story scope boundaries and scope expansion protocol |
+| `workflow.mdc` | Architecture discussion, code review gate, and documentation update within each story |
+| `mvp-guardrail.mdc` | Implementation complexity and abstraction decisions |
+| `product-owner.mdc` | Whether a story should be built at all |

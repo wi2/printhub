@@ -8,7 +8,7 @@ alwaysApply: true
 This rule describes the approved architecture for this project specifically. It supersedes any generic frontend pattern that conflicts with what is written here.
 
 **Rule precedence (full chain):**
-`story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` (this file) → `testing.mdc`
+`story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `milestone-execution.mdc` → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` (this file) → `testing.mdc`
 
 ---
 

@@ -9,7 +9,7 @@ Tests are executable documentation. A test that passes for the wrong reason is w
 
 ## Rule Precedence
 
-When rules conflict: `story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` → `testing.mdc` (this file).
+When rules conflict: `story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `milestone-execution.mdc` → `workflow.mdc` → `coding-standards.mdc` → `frontend-architecture.mdc` → `testing.mdc` (this file).
 
 ---
 

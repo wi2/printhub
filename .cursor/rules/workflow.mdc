@@ -6,7 +6,11 @@ alwaysApply: true
 # Development Workflow
 
 **Rule precedence (full chain):**
-`story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `workflow.mdc` (this file) → `coding-standards.mdc` → `frontend-architecture.mdc` → `testing.mdc`
+`story-driven-development.mdc` → `product-owner.mdc` → `mvp-guardrail.mdc` → `milestone-execution.mdc` → `workflow.mdc` (this file) → `coding-standards.mdc` → `frontend-architecture.mdc` → `testing.mdc`
+
+**Role of this rule:** `milestone-execution.mdc` defines the story execution sequence (the 10-step loop). This rule defines what happens *inside* each phase of that sequence — architecture discussion, implementation, test generation, code review, and documentation. When the two rules address the same moment, `milestone-execution.mdc` governs ordering and stopping conditions; this rule governs quality and content.
+
+**When this rule fires:** during active implementation of a story. It does not evaluate whether a story should be built — that is `product-owner.mdc`. It does not enforce scope boundaries — that is `story-driven-development.mdc`.
 
 The developer is a solo Senior Frontend Engineer learning AI-assisted development.
 They act simultaneously as Product Owner, Architect, Tech Lead, and Developer.
@@ -99,17 +103,17 @@ Document the answers as a short decision record before proceeding.
 ### 4. Implementation
 
 Write code only after the plan is approved. Follow project coding standards.
-If scope expands mid-implementation, stop: "This is growing — should we open a new issue for the extra work?"
+If scope expands mid-implementation, stop immediately. Apply the scope expansion protocol in `story-driven-development.mdc`.
 
 ### 5. Test Generation
 
-After each implementation task, do not move to the next task until tests exist.
+After each implementation task, do not move to the next task until tests exist. Tests are mandatory — a task is not complete without them. The only choice is timing: write them now, or immediately after the developer reviews the implementation.
 
 - **Pure functions and utilities** → unit tests (Vitest, no DOM)
 - **Custom hooks** → hook tests (`renderHook` + `createWrapper` from `testing.mdc`)
 - **Components** → component tests (RTL) covering all render states
 - **Feature slices** → integration tests (RTL + MSW)
-- Ask: "Do you want me to generate the tests, or will you write them?"
+- Ask: "Should I write the tests now, or after you review the implementation?"
 - Never mark a task complete without test coverage
 
 ### 6. Code Review Gate

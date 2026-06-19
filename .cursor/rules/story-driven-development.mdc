@@ -7,6 +7,8 @@ alwaysApply: true
 
 Implementation must follow the approved MVP stories in `docs/delivery/epic-mvp.md`.
 
+**Scope authority:** This rule is the single authoritative source for scope boundaries and the scope expansion protocol. Other rules that address scope enforcement cross-reference this section rather than restating it.
+
 ## For every task, state:
 
 1. **Story** — which story ID is being implemented (e.g. S-1.1)
