@@ -1,0 +1,96 @@
+# Guardrail bounds — safety limits enforced by the validator before any
+# combination enters the manifest. A resolved parameter map with any guarded
+# parameter outside these bounds is rejected and logged; it does not ship.
+#
+# Structure: each top-level key is a guarded parameter name matching the
+# GuardrailBounds type in scripts/engine/types.ts. Within each parameter,
+# keys are material IDs (for temperature parameters), printer IDs (for speed
+# parameters), or "default" as a fallback when no specific key matches.
+#
+# Validator behaviour (validate.ts at MVP):
+#   The validator currently resolves bounds using the "default" key only.
+#   Per-material and per-printer keys are authoritative and will be used by
+#   the build script (S-2.9) for combination-specific lookups.
+#
+# Sources:
+#   - Bambu Studio built-in material profiles (v1.9+)
+#   - PrusaSlicer default printer profiles (github.com/prusa3d/PrusaSlicer)
+#   - OrcaSlicer community profiles (github.com/SoftFever/OrcaSlicer)
+#   - Manufacturer material datasheets (Prusament, Bambu, eSUN)
+
+# --- Nozzle temperature (°C) ---
+# "default" covers the union of all supported materials' safe ranges.
+# Per-material keys are tighter and will be used for combination-specific checks.
+nozzleTemp:
+  default:
+    min: 185
+    max: 265
+  pla:
+    min: 185
+    max: 240
+  petg:
+    min: 225
+    max: 265
+  tpu:
+    min: 200
+    max: 250
+
+# --- Bed temperature (°C) ---
+bedTemp:
+  default:
+    min: 0
+    max: 95
+  pla:
+    min: 0
+    max: 70
+  petg:
+    min: 0
+    max: 95
+  tpu:
+    min: 0
+    max: 50
+
+# --- Print speed (mm/s) ---
+# "default" ceiling covers the slowest printer's absolute maximum (Ender 3: 250).
+# Per-printer keys reflect each machine's tested safe operating ceiling.
+printSpeed:
+  default:
+    min: 10
+    max: 350
+  bambu-a1-mini:
+    min: 10
+    max: 300
+  bambu-x1c:
+    min: 10
+    max: 350
+  prusa-mk4:
+    min: 10
+    max: 250
+  creality-ender-3-v3-se:
+    min: 10
+    max: 180
+  creality-k1:
+    min: 10
+    max: 500
+
+# --- First-layer speed (mm/s) ---
+# Kept deliberately lower than printSpeed — first-layer adhesion is critical.
+firstLayerSpeed:
+  default:
+    min: 5
+    max: 80
+  bambu-a1-mini:
+    min: 5
+    max: 50
+  bambu-x1c:
+    min: 5
+    max: 50
+  prusa-mk4:
+    min: 5
+    max: 40
+  creality-ender-3-v3-se:
+    min: 5
+    max: 35
+  creality-k1:
+    min: 5
+    max: 50

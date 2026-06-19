@@ -1,0 +1,77 @@
+# Global defaults — applied to every combination before any specific layer.
+#
+# These are conservative fallback values. Every parameter defined in
+# parameter-schema.md must have an entry here so the resolver always produces
+# a complete parameter map, even if a specific layer omits a key.
+#
+# Primary layer ownership (see adr-002-layer-ownership.md):
+#   Printer:  firmwareFlavor, motionSystem, bed dimensions, maxSpeed,
+#             maxAcceleration, travelSpeed, printSpeed, firstLayerSpeed
+#   Material: temperatures, cooling, retraction
+#   Goal:     layer geometry, shell/infill, speed overrides (Quality only)
+#   Nozzle:   nozzleDiameter, lineWidth, layer height bounds, maxVolumetricSpeed
+#
+# All values here are intentionally conservative — the specific layers always
+# override them with hardware- and material-correct values.
+
+# --- Printer characteristics ---
+# Conservative Marlin/Cartesian defaults — printer layer always overrides.
+firmwareFlavor: "marlin"
+motionSystem: "cartesian"
+bedSizeX: 220
+bedSizeY: 220
+maxPrintHeight: 250
+maxSpeed: 200
+maxAcceleration: 1000
+travelSpeed: 120
+
+# --- Speeds ---
+# Conservative defaults — printer layer sets hardware-appropriate values.
+# Quality goal overrides printSpeed and firstLayerSpeed with a universal slow value.
+printSpeed: 80
+firstLayerSpeed: 25
+externalPerimeterSpeed: 40
+infillSpeed: 100
+
+# --- Temperatures ---
+# PLA-safe defaults — material layer always overrides with material-correct values.
+nozzleTemp: 200
+firstLayerNozzleTemp: 200
+bedTemp: 55
+firstLayerBedTemp: 60
+
+# --- Cooling ---
+# Full fan as a safe default — material layer overrides for PETG and TPU.
+fanSpeed: 100
+fanSpeedMin: 0
+fanKickInLayer: 2
+
+# --- Layer geometry ---
+# Standard 0.2mm layer height defaults — goal layer overrides for Quality.
+layerHeight: 0.2
+firstLayerHeight: 0.2
+minLayerHeight: 0.08
+maxLayerHeight: 0.30
+
+# --- Nozzle and extrusion ---
+# 0.4mm nozzle defaults — nozzle layer always overrides with nozzle-correct values.
+nozzleDiameter: 0.4
+lineWidth: 0.45
+maxVolumetricSpeed: 8.0
+
+# --- Shell and infill ---
+# Standard Balanced-quality defaults — goal layer may override.
+perimeterCount: 3
+topSolidLayers: 5
+bottomSolidLayers: 5
+infillDensity: 15
+infillPattern: "gyroid"
+
+# --- Retraction ---
+# Direct-drive defaults — material layer overrides with material-correct values.
+retractLength: 0.8
+retractSpeed: 40
+deretractSpeed: 30
+
+# --- Support ---
+supportEnabled: false
