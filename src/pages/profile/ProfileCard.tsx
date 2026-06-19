@@ -90,7 +90,7 @@ export function ProfileCard({ entry }: ProfileCardProps) {
         </ImportGuideReveal>
       )}
 
-      <FeedbackPrompt />
+      <FeedbackPrompt slug={entry.slug} />
     </div>
   );
 }

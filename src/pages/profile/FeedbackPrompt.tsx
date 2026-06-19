@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { FeedbackOutcome } from '../../types';
 
 /** Preset failure reasons from mvp-spec.md Stage 5 — shared with the feedback API in M4. */
 export const FAILURE_REASONS = [
@@ -16,17 +17,50 @@ type FeedbackState =
   | { status: 'failure-form'; selectedReasons: FailureReason[] }
   | { status: 'confirmed'; message: string };
 
+type FeedbackPayload = {
+  slug: string;
+  outcome: FeedbackOutcome;
+  failureReasons?: string[];
+};
+
 const SUCCESS_MESSAGE = 'Thanks. This helps us improve the profile for everyone.';
 const FAILURE_MESSAGE = "Thanks for the report. We'll review this combination.";
 const PENDING_MESSAGE =
   'No problem — come back after your print and let us know how it went.';
 
 /**
+ * Submits feedback fire-and-forget. Failures are logged to the console only —
+ * the user always sees the confirmation message immediately.
+ */
+function submitFeedback(payload: FeedbackPayload): void {
+  void fetch('/api/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(response => {
+      if (!response.ok) {
+        console.error(
+          'Feedback submission failed:',
+          response.status,
+          response.statusText,
+        );
+      }
+    })
+    .catch(error => {
+      console.error('Feedback submission failed:', error);
+    });
+}
+
+type FeedbackPromptProps = {
+  slug: string;
+};
+
+/**
  * Collects anonymous print outcome feedback on the profile page.
  * Renders on page load; buttons are replaced by a confirmation after one response.
- * API submission is wired in M4 — this component manages UI state only.
  */
-export function FeedbackPrompt() {
+export function FeedbackPrompt({ slug }: FeedbackPromptProps) {
   const [state, setState] = useState<FeedbackState>({ status: 'idle' });
 
   function handleToggleReason(reason: FailureReason) {
@@ -46,8 +80,25 @@ export function FeedbackPrompt() {
       if (current.status !== 'failure-form' || current.selectedReasons.length === 0) {
         return current;
       }
+
+      submitFeedback({
+        slug,
+        outcome: 'failure',
+        failureReasons: current.selectedReasons,
+      });
+
       return { status: 'confirmed', message: FAILURE_MESSAGE };
     });
+  }
+
+  function handleSuccess() {
+    submitFeedback({ slug, outcome: 'success' });
+    setState({ status: 'confirmed', message: SUCCESS_MESSAGE });
+  }
+
+  function handlePending() {
+    submitFeedback({ slug, outcome: 'pending' });
+    setState({ status: 'confirmed', message: PENDING_MESSAGE });
   }
 
   if (state.status === 'confirmed') {
@@ -88,10 +139,7 @@ export function FeedbackPrompt() {
   return (
     <section aria-label="Print feedback">
       <p>Did your print succeed with this profile?</p>
-      <button
-        type="button"
-        onClick={() => setState({ status: 'confirmed', message: SUCCESS_MESSAGE })}
-      >
+      <button type="button" onClick={handleSuccess}>
         Yes — it worked
       </button>
       <button
@@ -100,10 +148,7 @@ export function FeedbackPrompt() {
       >
         No — it failed
       </button>
-      <button
-        type="button"
-        onClick={() => setState({ status: 'confirmed', message: PENDING_MESSAGE })}
-      >
+      <button type="button" onClick={handlePending}>
         I haven&apos;t printed yet
       </button>
     </section>
