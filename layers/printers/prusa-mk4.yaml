@@ -1,0 +1,25 @@
+# Prusa MK4
+#
+# Cartesian (bed-slinger) with next-gen Nextruder direct drive, load-cell
+# bed levelling, and input shaper support via Klipper-based Prusa firmware.
+# Serialises to PrusaSlicer (.ini config bundle) format.
+#
+# gcode_flavor in PrusaSlicer for MK4 is "klipper" — the Prusa MK4 ships
+# with a Klipper-based firmware since firmware version 6.0+.
+#
+# printSpeed of 150mm/s is a conservative Balanced value; the MK4 with input
+# shaping enabled can reach 300mm/s for inner walls, but 150mm/s is reliable
+# across all users including those on stock firmware without IS enabled.
+#
+# Sources: PrusaSlicer 2.8 built-in MK4 profiles; Prusa Knowledge Base.
+
+firmwareFlavor: "klipper"
+motionSystem: "cartesian"
+bedSizeX: 250
+bedSizeY: 210
+maxPrintHeight: 220
+maxSpeed: 500
+maxAcceleration: 10000
+travelSpeed: 200
+printSpeed: 150
+firstLayerSpeed: 25

@@ -1,0 +1,41 @@
+# TPU 95A (Thermoplastic Polyurethane, Shore 95A hardness)
+#
+# Flexible, rubber-like material. Requires slow print speeds (handled by
+# combination overrides or the build script for TPU combinations). Must use
+# minimal retraction — excessive retraction causes the flexible filament to
+# buckle and jam inside the extruder path.
+#
+# Temperature notes:
+#   230°C nozzle — standard for 95A hardness. Softer TPU variants (87A)
+#   may need 220°C; harder variants (98A) may need up to 240°C.
+#   30°C bed — TPU adheres well to PEI at room temperature. A heated bed
+#   above 40°C causes TPU to bond too aggressively and can cause the print
+#   to deform on removal.
+#
+# Cooling notes:
+#   20% maximum fan speed. TPU requires minimal cooling — high fan speed
+#   causes inter-layer cracking and reduces flexibility of the final part.
+#   fanKickInLayer: 4 — allow four warm layers for adhesion.
+#
+# Retraction notes:
+#   0.5mm / 25mm/s — minimum viable retraction for direct drive. TPU
+#   is compressible; retracting more than 1mm causes the filament to buckle
+#   in the extruder path and requires a cold pull to clear. 0.5mm prevents
+#   stringing while avoiding jams.
+#
+# Note: TPU combinations are post-launch. These values are authored for
+# correctness and will be validated physically before TPU appears in the form.
+#
+# Sources: eSUN TPU 95A datasheet; Bambu Studio v1.9 TPU profile;
+#          OrcaSlicer TPU community profile.
+
+nozzleTemp: 230
+firstLayerNozzleTemp: 230
+bedTemp: 30
+firstLayerBedTemp: 30
+fanSpeed: 20
+fanSpeedMin: 0
+fanKickInLayer: 4
+retractLength: 0.5
+retractSpeed: 25
+deretractSpeed: 20

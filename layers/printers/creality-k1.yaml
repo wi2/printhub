@@ -1,0 +1,22 @@
+# Creality K1
+#
+# CoreXY high-speed printer running Klipper-based Creality OS firmware.
+# Serialises to Bambu Studio / Orca Slicer (.3mf) format.
+# firmwareFlavor is set but not emitted by the Bambu/Orca serialiser.
+#
+# The K1 supports input shaping and can achieve high balanced print speeds.
+# printSpeed of 200mm/s is a conservative Balanced starting point; community
+# profiles commonly use 250–300mm/s once input shaping is calibrated.
+#
+# Sources: Creality K1 product page; OrcaSlicer K1 community profile.
+
+firmwareFlavor: "klipper"
+motionSystem: "corexy"
+bedSizeX: 220
+bedSizeY: 220
+maxPrintHeight: 250
+maxSpeed: 600
+maxAcceleration: 8000
+travelSpeed: 300
+printSpeed: 200
+firstLayerSpeed: 30

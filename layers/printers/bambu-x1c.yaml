@@ -1,0 +1,22 @@
+# Bambu Lab X1C
+#
+# CoreXY with lidar-assisted first-layer calibration, active vibration
+# compensation (AVC), and hardened steel nozzle by default.
+# Serialises to Bambu Studio / Orca Slicer (.3mf) format.
+# firmwareFlavor is set but not emitted by the Bambu/Orca serialiser.
+#
+# The X1C can sustain higher balanced speeds than the A1 Mini due to its
+# more rigid frame and higher-performance motion system.
+#
+# Sources: Bambu Studio v1.9+ built-in X1C machine profile; Bambu Lab Wiki.
+
+firmwareFlavor: "bambu"
+motionSystem: "corexy"
+bedSizeX: 256
+bedSizeY: 256
+maxPrintHeight: 256
+maxSpeed: 500
+maxAcceleration: 10000
+travelSpeed: 350
+printSpeed: 250
+firstLayerSpeed: 30

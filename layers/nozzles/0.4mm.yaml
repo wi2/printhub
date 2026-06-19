@@ -1,0 +1,25 @@
+# 0.4mm nozzle (standard brass)
+#
+# The default nozzle size for all five launch printers. Produces good
+# resolution for most general-purpose and quality prints.
+#
+# lineWidth: 0.45mm (112.5% of nozzle diameter) — slightly wider than the
+# nozzle for better layer bonding without sacrificing detail.
+#
+# Layer height bounds:
+#   minLayerHeight: 0.08mm — 20% of nozzle diameter. Below this, extrusion
+#     becomes unreliable and susceptible to partial clogs.
+#   maxLayerHeight: 0.30mm — 75% of nozzle diameter. Above this, layers do
+#     not bond reliably and under-extrusion artefacts appear.
+#
+# maxVolumetricSpeed: 8.0mm³/s — conservative limit valid for both PLA and
+# PETG through a standard brass 0.4mm nozzle. PLA can reach 10–12mm³/s on
+# high-end hotends; 8.0mm³/s is safe for all five launch printers.
+#
+# Sources: OrcaSlicer 0.4mm nozzle profile; Bambu Studio 0.4mm nozzle profile.
+
+nozzleDiameter: 0.4
+lineWidth: 0.45
+minLayerHeight: 0.08
+maxLayerHeight: 0.30
+maxVolumetricSpeed: 8.0

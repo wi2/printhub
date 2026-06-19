@@ -1,0 +1,34 @@
+# PLA (Polylactic Acid)
+#
+# The most common 3D printing material. Easy to print, minimal warping,
+# no enclosure required, biodegradable. Requires active cooling for bridging
+# and overhangs.
+#
+# Temperature notes:
+#   215°C nozzle / 220°C first layer — slightly elevated first-layer temp
+#   improves adhesion on PEI and textured sheets. Within PLA safe range.
+#   55°C bed / 60°C first layer — standard PEI adhesion. Raising above 65°C
+#   can cause PLA to release from the sheet mid-print (heat creep into bed).
+#
+# Cooling notes:
+#   Full fan (100%) from layer 2. PLA requires strong cooling for clean
+#   overhangs and bridges. fanSpeedMin of 25% prevents the fan from cycling
+#   off during short-duration moves.
+#
+# Retraction notes:
+#   0.8mm / 45mm/s — suitable for all five launch printers (direct drive).
+#   Bowden setups would require 4–6mm; no Bowden printers in the launch set.
+#
+# Sources: Prusament PLA datasheet; Bambu Studio v1.9 PLA profile;
+#          OrcaSlicer PLA community profile.
+
+nozzleTemp: 215
+firstLayerNozzleTemp: 220
+bedTemp: 55
+firstLayerBedTemp: 60
+fanSpeed: 100
+fanSpeedMin: 25
+fanKickInLayer: 2
+retractLength: 0.8
+retractSpeed: 45
+deretractSpeed: 35

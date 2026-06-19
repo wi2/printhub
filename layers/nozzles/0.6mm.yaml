@@ -1,0 +1,29 @@
+# 0.6mm nozzle (large bore)
+#
+# Larger nozzle for faster prints and stronger layer bonding. Lower resolution
+# than 0.4mm but significantly higher throughput. Suitable for functional
+# parts where speed and strength matter more than fine detail.
+#
+# lineWidth: 0.68mm (113% of nozzle diameter) — standard wider-than-nozzle
+# line width for 0.6mm to ensure good layer adhesion.
+#
+# Layer height bounds:
+#   minLayerHeight: 0.12mm — 20% of nozzle diameter.
+#   maxLayerHeight: 0.45mm — 75% of nozzle diameter.
+#
+# Note: the Quality goal's layerHeight of 0.12mm is exactly at this nozzle's
+# minimum. This is valid but leaves no margin. If physical testing shows
+# quality prints at 0.12mm with 0.6mm nozzle are unreliable, a combination
+# override for quality + 0.6mm should raise it to 0.15mm.
+#
+# maxVolumetricSpeed: 15.0mm³/s — the larger bore allows significantly higher
+# volumetric throughput. 15mm³/s is achievable for PLA and PETG on all five
+# launch printers with stock hotends.
+#
+# Sources: OrcaSlicer 0.6mm nozzle profile; Bambu Studio 0.6mm nozzle profile.
+
+nozzleDiameter: 0.6
+lineWidth: 0.68
+minLayerHeight: 0.12
+maxLayerHeight: 0.45
+maxVolumetricSpeed: 15.0

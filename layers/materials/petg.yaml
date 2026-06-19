@@ -1,0 +1,36 @@
+# PETG (Polyethylene Terephthalate Glycol)
+#
+# Excellent layer adhesion, chemical resistance, and slight flexibility.
+# More forgiving than PLA on dimensional accuracy. Requires reduced cooling —
+# too much fan speed causes layer delamination and brittleness.
+#
+# Temperature notes:
+#   240°C nozzle — mid-range for PETG; accommodates most brand variations.
+#   Prusament PETG and Bambu PETG both specify 230–250°C.
+#   80°C bed / 85°C first layer — standard for PEI. Above 90°C PETG bonds
+#   very aggressively to smooth PEI and can damage the sheet on removal.
+#   Use a textured PEI sheet or apply a thin release agent above 85°C.
+#
+# Cooling notes:
+#   50% maximum fan speed. PETG above 60% fan consistently produces layer
+#   separation in community testing. fanKickInLayer: 3 — the first two layers
+#   need warm ambient air for adhesion.
+#
+# Retraction notes:
+#   0.8mm / 40mm/s — PETG strings slightly more than PLA but also clogs more
+#   easily at high retraction distances. 0.8mm is the safe middle ground for
+#   all five direct-drive launch printers.
+#
+# Sources: Prusament PETG datasheet; Bambu Studio v1.9 PETG profile;
+#          OrcaSlicer PETG community profile.
+
+nozzleTemp: 240
+firstLayerNozzleTemp: 240
+bedTemp: 80
+firstLayerBedTemp: 85
+fanSpeed: 50
+fanSpeedMin: 0
+fanKickInLayer: 3
+retractLength: 0.8
+retractSpeed: 40
+deretractSpeed: 30

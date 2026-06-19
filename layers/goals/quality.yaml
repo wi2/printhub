@@ -1,0 +1,36 @@
+# Quality goal
+#
+# Best surface finish. Slower print time. For display models, miniatures,
+# and presentation parts where surface quality matters more than speed.
+#
+# Per ADR-002: the Quality goal explicitly overrides printSpeed and
+# firstLayerSpeed from the printer layer. This enforces a universal slow
+# print speed across all five printers — quality printing is slow regardless
+# of hardware capability. The goal layer is more specific than the printer
+# layer in the resolution order, so these values win.
+#
+# Layer height: 0.12mm — 30% of 0.4mm nozzle diameter. Fine enough for
+# visible surface quality improvement; within the minimum layer height for
+# both 0.4mm (min: 0.08mm) and 0.6mm (min: 0.12mm) nozzles.
+# firstLayerHeight is 0.15mm for reliable bed adhesion at this fine height.
+#
+# Speeds: printSpeed of 80mm/s is conservative enough to produce clean outer
+# walls on all five launch printers. externalPerimeterSpeed of 30mm/s
+# produces high-quality surfaces. A slower infillSpeed (80mm/s) reduces
+# vibration noise that degrades outer wall quality at fine layer heights.
+#
+# Infill: 20% density and 4 perimeters for better structural integrity in
+# parts where quality is requested (often mechanical display parts).
+
+layerHeight: 0.12
+firstLayerHeight: 0.15
+printSpeed: 80
+firstLayerSpeed: 20
+externalPerimeterSpeed: 30
+infillSpeed: 80
+perimeterCount: 4
+topSolidLayers: 6
+bottomSolidLayers: 5
+infillDensity: 20
+infillPattern: "gyroid"
+supportEnabled: false

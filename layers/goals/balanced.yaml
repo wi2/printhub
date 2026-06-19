@@ -1,0 +1,32 @@
+# Balanced goal
+#
+# Good quality with reasonable print time. The safe default for most users.
+# Covers functional parts, prototypes, and everyday prints.
+#
+# Per ADR-002: the Balanced goal does NOT set printSpeed or firstLayerSpeed.
+# Those values are owned by the printer layer, which reflects each machine's
+# tested Balanced operating point. This goal layer contains only quality and
+# geometry modifiers.
+#
+# Layer height: 0.2mm is the standard for balanced prints — widely compatible
+# with all nozzle sizes (within 0.4mm and 0.6mm nozzle bounds).
+#
+# Speeds: externalPerimeterSpeed of 50mm/s produces clean outer walls across
+# all five launch printers. infillSpeed of 120mm/s is within the Ender 3's
+# capability and conservative for the Bambu and K1 machines.
+#
+# Infill: 15% gyroid provides adequate structural strength for general-purpose
+# prints without excessive print time. Gyroid is preferred over grid or lines
+# for its equal strength in all directions and compatibility with flexible
+# materials (relevant for future TPU profiles).
+
+layerHeight: 0.2
+firstLayerHeight: 0.2
+externalPerimeterSpeed: 50
+infillSpeed: 120
+perimeterCount: 3
+topSolidLayers: 5
+bottomSolidLayers: 5
+infillDensity: 15
+infillPattern: "gyroid"
+supportEnabled: false

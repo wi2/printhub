@@ -1,0 +1,25 @@
+# Creality Ender 3 V3 SE
+#
+# Cartesian (bed-slinger) with Sprite direct drive extruder, CR Touch
+# auto-levelling, and Marlin-based firmware. No input shaping.
+# Serialises to PrusaSlicer (.ini config bundle) format.
+#
+# Without input shaping, the Ender 3 V3 SE produces ringing artefacts above
+# ~120mm/s on inner walls. printSpeed of 100mm/s is a conservative Balanced
+# value that avoids ringing without sacrificing practical print time.
+#
+# maxSpeed reflects the manufacturer specification (250mm/s). The printSpeed
+# Balanced default is intentionally well below this ceiling.
+#
+# Sources: Creality product page; OrcaSlicer Ender 3 V3 SE community profile.
+
+firmwareFlavor: "marlin"
+motionSystem: "cartesian"
+bedSizeX: 220
+bedSizeY: 220
+maxPrintHeight: 250
+maxSpeed: 250
+maxAcceleration: 1500
+travelSpeed: 150
+printSpeed: 100
+firstLayerSpeed: 25

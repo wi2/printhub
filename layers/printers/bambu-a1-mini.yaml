@@ -1,0 +1,22 @@
+# Bambu Lab A1 Mini
+#
+# CoreXY motion system with active vibration compensation (AVC).
+# The A1 Mini serialises to Bambu Studio / Orca Slicer (.3mf) format.
+# firmwareFlavor is set but not emitted by the Bambu/Orca serialiser —
+# the machine profile encodes this internally.
+#
+# printSpeed and firstLayerSpeed reflect a tested Balanced operating point.
+# The guardrail ceiling for this printer is 300mm/s (printSpeed) / 50mm/s (firstLayer).
+#
+# Sources: Bambu Studio v1.9+ built-in A1 Mini machine profile; Bambu Lab Wiki.
+
+firmwareFlavor: "bambu"
+motionSystem: "corexy"
+bedSizeX: 180
+bedSizeY: 180
+maxPrintHeight: 180
+maxSpeed: 500
+maxAcceleration: 5000
+travelSpeed: 300
+printSpeed: 200
+firstLayerSpeed: 30
