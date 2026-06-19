@@ -71,3 +71,65 @@ export type ManifestEntry = {
 export type Manifest = {
   combinations: ManifestEntry[];
 };
+
+/**
+ * A validated printer + material + nozzle + goal tuple.
+ * isAvailable is false until the combination has passed a physical test print.
+ * slug is the canonical URL key: "[printer]-[material]-[nozzle]-[goal]".
+ */
+export type Combination = {
+  printer: string;
+  material: string;
+  nozzle: string;
+  goal: string;
+  isAvailable: boolean;
+  slug: string;
+};
+
+/**
+ * The downloadable slicer file produced for a combination.
+ * filename follows the pattern "[slug].[ext]" (e.g. "bambu-a1-mini-pla-04mm-balanced.ini").
+ */
+export type ProfileFile = {
+  slicerFormat: string;
+  downloadPath: string;
+  filename: string;
+};
+
+/**
+ * The result page data for a validated combination.
+ * highlights is always a fixed-length tuple of three plain-English sentences.
+ * confidenceCount is the number of successful print reports; fetched via the stats API.
+ */
+export type Profile = {
+  slug: string;
+  highlights: [string, string, string];
+  confidenceCount: number;
+  slicerFormat: string;
+  profileFile: ProfileFile;
+};
+
+/** Valid outcome values for a feedback submission. Source: S-4.1 and S-4.2 AC. */
+export type FeedbackOutcome = 'success' | 'failure' | 'pending';
+
+/**
+ * A single anonymous feedback submission stored against a combination slug.
+ * failureReasons is an empty array when outcome is not "failure".
+ */
+export type FeedbackSession = {
+  slug: string;
+  outcome: FeedbackOutcome;
+  failureReasons: string[];
+  submittedAt: string;
+};
+
+/**
+ * Slicer-specific import instructions shown to the user after download.
+ * One ImportGuide exists per supported SlicerFormat.
+ * steps are ordered; tip is the inline slicer-specific note from the spec.
+ */
+export type ImportGuide = {
+  slicerFormat: string;
+  steps: string[];
+  tip: string;
+};
