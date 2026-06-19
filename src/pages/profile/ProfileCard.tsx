@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { ManifestEntry } from '../../types';
 import { PRINTERS, MATERIALS, NOZZLE_SIZES, GOALS } from '../../types';
+import { DownloadButton } from './DownloadButton';
+import { ImportGuide } from './ImportGuide';
+import { FeedbackPrompt } from './FeedbackPrompt';
 
 /**
  * Constructs the profile page title by mapping manifest entry IDs to their
@@ -20,12 +23,12 @@ type ProfileCardProps = {
 };
 
 /**
- * Renders the full profile content: title, highlights, confidence count,
- * download button stub, and a clipboard share button.
- * The download button is a visible placeholder — actual download wired in S-3.7.
+ * Renders the full profile result: title, highlights, download, import guide,
+ * feedback prompt, and share action.
  */
 export function ProfileCard({ entry }: ProfileCardProps) {
   const [copied, setCopied] = useState(false);
+  const [showImportGuide, setShowImportGuide] = useState(false);
 
   async function handleShare() {
     await navigator.clipboard.writeText(window.location.href);
@@ -46,11 +49,23 @@ export function ProfileCard({ entry }: ProfileCardProps) {
       <p>New profile — be the first to report results.</p>
 
       <div>
-        <button type="button">Download profile</button>
+        <DownloadButton
+          entry={entry}
+          onDownloadStarted={() => setShowImportGuide(true)}
+        />
         <button type="button" onClick={handleShare}>
           {copied ? 'Copied!' : 'Share this profile'}
         </button>
       </div>
+
+      {showImportGuide && (
+        <>
+          <p role="status">Download started</p>
+          <ImportGuide slicerFormat={entry.slicerFormat} />
+        </>
+      )}
+
+      <FeedbackPrompt />
     </div>
   );
 }

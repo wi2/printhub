@@ -15,7 +15,7 @@ const MOCK_ENTRY: ManifestEntry = {
   goal: 'balanced',
   isAvailable: true,
   slicerFormat: 'bambu-orca',
-  downloadPath: '/profiles/bambu-a1-mini-pla-04mm-balanced.3mf',
+  downloadPath: '/profiles/bambu-orca/bambu-a1-mini-pla-04mm-balanced.3mf',
   highlights: [
     'Print speed is set to 180mm/s — fast for efficiency, conservative enough for consistent quality.',
     'Layer height is 0.2mm — the standard for balanced prints.',
