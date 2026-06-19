@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
 const CONTENT_TYPES: Record<string, string> = {
   '.json': 'application/json',

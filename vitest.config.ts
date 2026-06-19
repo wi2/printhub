@@ -19,6 +19,13 @@ export default defineConfig({
           include: ['scripts/**/*.{test,spec}.ts'],
         },
       },
+      {
+        test: {
+          name: 'server',
+          environment: 'node',
+          include: ['server/**/*.{test,spec}.ts'],
+        },
+      },
     ],
   },
 });
