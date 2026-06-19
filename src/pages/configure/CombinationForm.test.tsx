@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { server } from '../../lib/msw/server';
 import { _resetManifestCache } from './availability';
 import { CombinationForm } from './CombinationForm';
@@ -36,6 +36,31 @@ function renderForm() {
     <MemoryRouter>
       <CombinationForm />
     </MemoryRouter>,
+  );
+}
+
+/** Renders the form with a full router so navigation can be asserted. */
+function renderFormWithRouter() {
+  render(
+    <MemoryRouter initialEntries={['/configure']}>
+      <Routes>
+        <Route path="/configure" element={<CombinationForm />} />
+        <Route path="/profile/:slug" element={<div>profile-page</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+async function fillAllInputs(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('combobox'));
+  await user.click(screen.getByRole('option', { name: 'Prusa MK4' }));
+  await waitFor(() => expect(screen.getByRole('radio', { name: 'PLA' })).not.toBeDisabled());
+  await user.click(screen.getByRole('radio', { name: 'PLA' }));
+  await user.click(screen.getByRole('radio', { name: '0.4mm' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  await user.click(screen.getByRole('radio', { name: 'Balanced' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Generate profile' })).toBeEnabled(),
   );
 }
 
@@ -232,5 +257,81 @@ describe('CombinationForm', () => {
     it('Creality K1 maps to bambu-orca', () => {
       expect(PRINTERS.find(p => p.id === 'creality-k1')?.defaultSlicerFormat).toBe('bambu-orca');
     });
+  });
+
+  // S-3.4: submit tests run in real time (800ms delay is real, waitFor timeout is 2000ms).
+  // Fake timers are not used here because waitFor polling also uses setTimeout.
+  describe('form submission (S-3.4)', () => {
+    it('shows "Generating…" and locks inputs immediately after submit', async () => {
+      const user = userEvent.setup();
+      renderFormWithRouter();
+      await fillAllInputs(user);
+
+      // click() resolves after the synchronous event chain — before the 800ms delay fires.
+      await user.click(screen.getByRole('button', { name: 'Generate profile' }));
+
+      expect(screen.getByRole('button', { name: 'Generating…' })).toBeInTheDocument();
+      // fieldset[disabled] propagates to the combobox inside it
+      expect(screen.getByRole('combobox')).toBeDisabled();
+
+      // Let the 800ms delay finish so there are no pending state updates after the test.
+      await waitFor(
+        () => expect(screen.getByText('profile-page')).toBeInTheDocument(),
+        { timeout: 2000 },
+      );
+    }, 3000);
+
+    it('navigates to /profile/[slug] after the delay for a valid combination', async () => {
+      const user = userEvent.setup();
+      renderFormWithRouter();
+      await fillAllInputs(user);
+
+      await user.click(screen.getByRole('button', { name: 'Generate profile' }));
+
+      await waitFor(
+        () => expect(screen.getByText('profile-page')).toBeInTheDocument(),
+        { timeout: 2000 },
+      );
+    }, 3000);
+
+    it('shows an error and does not navigate when the combination is not in the manifest', async () => {
+      // Manifest has the nozzle combo (isNozzleAvailable → true, canGenerate → true)
+      // but NOT the balanced goal — so isAvailable(…, 'balanced') returns false.
+      const noBalancedManifest = {
+        combinations: [
+          { printer: 'prusa-mk4', material: 'pla', nozzle: '0.4', goal: 'quality',
+            isAvailable: true, slug: 'x', slicerFormat: 'prusaslicer',
+            downloadPath: '/d/x', highlights: ['a', 'b', 'c'] },
+        ],
+      };
+      server.use(http.get('/combinations.json', () => HttpResponse.json(noBalancedManifest)));
+
+      const user = userEvent.setup();
+      renderFormWithRouter();
+
+      await user.click(screen.getByRole('combobox'));
+      await user.click(screen.getByRole('option', { name: 'Prusa MK4' }));
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'PLA' })).not.toBeDisabled());
+      await user.click(screen.getByRole('radio', { name: 'PLA' }));
+      await user.click(screen.getByRole('radio', { name: '0.4mm' }));
+      await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+      await user.click(screen.getByRole('radio', { name: 'Balanced' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Generate profile' })).toBeEnabled(),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Generate profile' }));
+
+      await waitFor(
+        () =>
+          expect(
+            screen.getAllByRole('alert').some(el =>
+              /validated profile/.test(el.textContent ?? ''),
+            ),
+          ).toBe(true),
+        { timeout: 2000 },
+      );
+      expect(screen.queryByText('profile-page')).not.toBeInTheDocument();
+    }, 3000);
   });
 });
