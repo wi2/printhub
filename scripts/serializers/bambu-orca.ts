@@ -192,13 +192,16 @@ export function serialize(params: ResolvedParams, combination: Combination): Buf
   // mtime is pinned to the earliest valid ZIP date, making the archive deterministic
   // regardless of build time. fflate requires dates in range 1980–2099.
   const stamp = { mtime: new Date('1980-01-01T00:00:00Z') };
+  const entry = (content: string): [Uint8Array, { mtime: Date }] =>
+    [strToU8(content), stamp];
+
   const files = {
-    '[Content_Types].xml': [strToU8(CONTENT_TYPES_XML), stamp],
-    '_rels/.rels': [strToU8(RELS_XML), stamp],
-    'Metadata/process.json': [strToU8(JSON.stringify(processProfile, null, 2)), stamp],
-    'Metadata/filament.json': [strToU8(JSON.stringify(filamentProfile, null, 2)), stamp],
-    'Metadata/machine.json': [strToU8(JSON.stringify(machineProfile, null, 2)), stamp],
-  } as const;
+    '[Content_Types].xml': entry(CONTENT_TYPES_XML),
+    '_rels/.rels': entry(RELS_XML),
+    'Metadata/process.json': entry(JSON.stringify(processProfile, null, 2)),
+    'Metadata/filament.json': entry(JSON.stringify(filamentProfile, null, 2)),
+    'Metadata/machine.json': entry(JSON.stringify(machineProfile, null, 2)),
+  };
 
   // level 0 = store-only (no compression) — files are small JSON; no benefit to compressing
   const zipped = zipSync(files, { level: 0 });
