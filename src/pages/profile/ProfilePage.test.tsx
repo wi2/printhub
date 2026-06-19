@@ -1,42 +1,127 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../lib/msw/server';
+import type { ManifestEntry } from '../../types';
 import { ProfilePage } from './ProfilePage';
+
+const MOCK_ENTRY: ManifestEntry = {
+  slug: 'bambu-a1-mini-pla-04mm-balanced',
+  printer: 'bambu-a1-mini',
+  material: 'pla',
+  nozzle: '0.4',
+  goal: 'balanced',
+  isAvailable: true,
+  slicerFormat: 'bambu-orca',
+  downloadPath: '/profiles/bambu-a1-mini-pla-04mm-balanced.3mf',
+  highlights: [
+    'Print speed is set to 180mm/s — fast for efficiency, conservative enough for consistent quality.',
+    'Layer height is 0.2mm — the standard for balanced prints.',
+    'Bed temperature is 55°C. If you see corners lifting, try 60°C.',
+  ],
+};
 
 function renderAtProfileRoute(slug: string) {
   render(
     <MemoryRouter initialEntries={[`/profile/${slug}`]}>
       <Routes>
         <Route path="/profile/:slug" element={<ProfilePage />} />
+        <Route path="/configure" element={<div>Configure page</div>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
 describe('ProfilePage', () => {
-  it('renders the profile title', () => {
-    renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Bambu A1 Mini · PLA · 0.4mm · Balanced',
+  beforeEach(() => {
+    server.use(
+      http.get('/combinations.json', () =>
+        HttpResponse.json({ combinations: [MOCK_ENTRY] }),
+      ),
     );
+    // jsdom does not define navigator.clipboard; install a stub so handleShare
+    // can resolve and the 'Copied!' confirmation can be observed.
+    Object.defineProperty(navigator, 'clipboard', {
+      writable: true,
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
   });
 
-  it('renders three highlight sentences', () => {
-    renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  afterEach(() => {
+    // Remove the clipboard stub so each test starts with a fresh installation.
+    Object.defineProperty(navigator, 'clipboard', {
+      writable: true,
+      configurable: true,
+      value: undefined,
+    });
   });
 
-  it('renders the confidence count placeholder', () => {
-    renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
-    expect(
-      screen.getByText('New profile — be the first to report results.'),
-    ).toBeInTheDocument();
+  describe('when slug matches a manifest entry', () => {
+    it('renders the profile title in Printer · Material · Nozzle · Goal format', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
+        'Bambu Lab A1 Mini · PLA · 0.4mm · Balanced',
+      );
+    });
+
+    it('renders three highlight sentences from the manifest', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      expect(await screen.findAllByRole('listitem')).toHaveLength(3);
+    });
+
+    it('renders the confidence count placeholder', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      await screen.findByRole('heading', { level: 1 });
+      expect(
+        screen.getByText('New profile — be the first to report results.'),
+      ).toBeInTheDocument();
+    });
+
+    it('renders a Download profile button', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      expect(
+        await screen.findByRole('button', { name: 'Download profile' }),
+      ).toBeInTheDocument();
+    });
+
+    it('renders a Share this profile button', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      expect(
+        await screen.findByRole('button', { name: 'Share this profile' }),
+      ).toBeInTheDocument();
+    });
+
+    it('copies the current URL to the clipboard and shows Copied! confirmation', async () => {
+      const user = userEvent.setup();
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      await screen.findByRole('button', { name: 'Share this profile' });
+
+      await user.click(screen.getByRole('button', { name: 'Share this profile' }));
+
+      // 'Copied!' only renders after navigator.clipboard.writeText resolves,
+      // so its presence proves the clipboard write was called and succeeded.
+      await screen.findByRole('button', { name: 'Copied!' });
+    });
   });
 
-  it('renders a non-functional download button', () => {
-    renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
-    expect(
-      screen.getByRole('button', { name: 'Download profile' }),
-    ).toBeInTheDocument();
+  describe('when slug is not in the manifest', () => {
+    it('renders "This profile is no longer available"', async () => {
+      renderAtProfileRoute('unknown-slug-xyz');
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
+        'This profile is no longer available',
+      );
+    });
+
+    it('renders a link back to /configure', async () => {
+      renderAtProfileRoute('unknown-slug-xyz');
+      await screen.findByRole('heading', { level: 1 });
+      expect(screen.getByRole('link', { name: /configure/i })).toHaveAttribute(
+        'href',
+        '/configure',
+      );
+    });
   });
 });
