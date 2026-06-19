@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "tsx server/index.ts",
     "build": "vite build",
     "prebuild": "npm run build:profiles",
     "build:profiles": "tsx scripts/build.ts",

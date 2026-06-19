@@ -1,0 +1,15 @@
+{
+  "combinations": [
+    {
+      "slug": "bambu-a1-mini-pla-04mm-balanced",
+      "printer": "bambu-a1-mini",
+      "material": "pla",
+      "nozzle": "0.4",
+      "goal": "balanced",
+      "isAvailable": true,
+      "slicerFormat": "bambu-orca",
+      "downloadPath": "/profiles/bambu-orca/bambu-a1-mini-pla-04mm-balanced.3mf",
+      "highlights": ["One.", "Two.", "Three."]
+    }
+  ]
+}

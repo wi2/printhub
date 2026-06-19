@@ -26,6 +26,13 @@ export default defineConfig({
           include: ['server/**/*.{test,spec}.ts'],
         },
       },
+      {
+        test: {
+          name: 'integration',
+          environment: 'node',
+          include: ['tests/integration/**/*.{test,spec}.ts'],
+        },
+      },
     ],
   },
 });
