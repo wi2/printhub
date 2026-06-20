@@ -247,3 +247,18 @@ When Phase 1 work begins, these are the expected structural changes and where th
 | Slicer override UI | Add `SlicerOverride.tsx` to `src/pages/configure/` if feedback shows demand |
 
 No structural change is needed for Phase 1 unless user accounts are introduced. The current structure supports it without pre-emptive abstraction.
+
+---
+
+## Roadmap Awareness (V2–V5)
+
+ADR-004 establishes JSON as the canonical internal profile format. This does not change any `src/` file at V1, but it has implications for what comes next:
+
+- **V2** adds a typed `CanonicalProfile` type to `src/types.ts` (or a new `src/types/canonical.ts` if the file has been split). The frontend consumes this type when reading manifest entries — no structural change required.
+- **V3** introduces `src/hooks/useProfileStats.ts` as the first shared hook. This is when `src/hooks/` is created.
+- **V4** adds `src/pages/admin/` for the curator optimization dashboard. This requires authentication — the account decision must precede V4 frontend work.
+- **V5** does not require additional `src/` structure beyond what V4 introduces.
+
+For the full V2–V5 technical roadmap, see [`docs/delivery/roadmap-v2-v5.md`](../../docs/delivery/roadmap-v2-v5.md). For the architecture evolution, see [`docs/architecture/future-architecture.md`](../../docs/architecture/future-architecture.md).
+
+**Rule:** Nothing in this rules file changes until a story explicitly requires it. The notes above are planning context, not implementation instructions.

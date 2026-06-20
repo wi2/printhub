@@ -229,6 +229,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | **Guardrail validation** | Four critical parameters checked against material/printer-specific bounds before a combination enters the manifest. Failed combinations are skipped, not shipped. | `scripts/engine/validate.ts` |
 | **Deferred physical validation** | M5 engineering is complete; launch profiles pass automated validation only (`THEORETICALLY_VALID`). Real-hardware test prints (`PHYSICALLY_VALIDATED`) are deferred until printer access is available. | [ADR-003](../decisions/adr-003-deferred-physical-validation.md) |
 | **No database for MVP** | Manifest is a static JSON file; feedback is a JSON file store. No Postgres, SQLite, or Redis at launch. | `server/store.ts` |
+| **JSON as canonical profile format (V2+)** | A typed JSON document will sit between the resolver output and the serializers in V2, enabling profile versioning, feedback linkage, and optimization. At V1 the resolver output flows directly to serializers with no intermediate structured representation. | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md) |
 
 ---
 
@@ -242,6 +243,20 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | **CSR — no SEO on profile pages** | Profile content not in initial HTML; search engines that do not execute JS will not index highlights | Revisit SSG (e.g. `vite-ssg`) before Phase 1 scale |
 | **Static confidence count** | Stats API deferred; all profiles show "be the first to report results" | Wire `GET /api/profile/:slug/stats` post-launch |
 | **Guardrail scope** | Only four parameters validated; other settings rely on layer authoring discipline | Expand guarded params in Phase 1 if needed |
+
+---
+
+## 9. Roadmap Awareness
+
+This document describes the V1 (MVP) architecture. The following planned changes are documented separately and do not affect any code in this version:
+
+| Phase | Change | Reference |
+|---|---|---|
+| **V2** | Canonical JSON inserted between resolver and serializers; `ProfileVersion` records persisted per build; feedback store migrated to SQLite | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
+| **V2–V3** | Stats API (`GET /api/profile/:slug/stats`) implemented; confidence scoring added to `ProfilePage` | [backlog.md V3 stories](./backlog.md) |
+| **V4–V5** | Parameter comparison, rule-based suggestions, AI recommendation pipeline — all with mandatory human review | [roadmap-v2-v5.md](./roadmap-v2-v5.md) |
+
+For the entity model that underpins V2+, see [future-data-model.md](./future-data-model.md). For the full architecture evolution diagram, see [future-architecture.md](../architecture/future-architecture.md).
 
 ---
 
