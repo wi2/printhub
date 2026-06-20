@@ -238,7 +238,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 |---|---|---|
 | **File-based feedback storage** | No concurrent write safety at scale; no query API for analytics | Swap `createFileFeedbackStore` for SQLite when volume requires it |
 | **Quality goal not yet available** | Only Balanced goal is in the launch manifest (20 combinations). Quality layer exists but is not built or validated. | Add to build list after physical validation |
-| **Physical validation deferred** | Engineering is complete (M1–M5); all 20 launch combinations are `THEORETICALLY_VALID` only. Launch is blocked until physical test prints pass (PV-1, PV-2; originally S-5.4, S-5.5) | [ADR-003](../decisions/adr-003-deferred-physical-validation.md), `combination-validation-runbook.md` (to be written) |
+| **Physical validation deferred** | Engineering is complete (M1–M5); all 20 launch combinations are `THEORETICALLY_VALID` only. Launch is blocked until physical test prints pass (PV-1, PV-2; originally S-5.4, S-5.5) | [ADR-003](../decisions/adr-003-deferred-physical-validation.md), [combination-validation-runbook.md](./combination-validation-runbook.md) |
 | **CSR — no SEO on profile pages** | Profile content not in initial HTML; search engines that do not execute JS will not index highlights | Revisit SSG (e.g. `vite-ssg`) before Phase 1 scale |
 | **Static confidence count** | Stats API deferred; all profiles show "be the first to report results" | Wire `GET /api/profile/:slug/stats` post-launch |
 | **Guardrail scope** | Only four parameters validated; other settings rely on layer authoring discipline | Expand guarded params in Phase 1 if needed |
@@ -250,6 +250,8 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | Document | Purpose |
 |---|---|
 | [local-dev-setup.md](./local-dev-setup.md) | Node version, install, common issues |
+| [deployment-runbook.md](./deployment-runbook.md) | Production deploy, smoke tests, rollback |
+| [combination-validation-runbook.md](./combination-validation-runbook.md) | Physical validation before launch |
 | [epic-mvp.md](./epic-mvp.md) | Story scope and acceptance criteria |
 | [ADR-001](../decisions/adr-001-rendering-strategy.md) | CSR vs SSG decision |
 | [ADR-002](../decisions/adr-002-layer-ownership.md) | Parameter ownership by layer type |

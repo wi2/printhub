@@ -85,7 +85,7 @@ Physical validation remains tracked under follow-up stories PV-1 and PV-2 (see `
 
 When hardware access is available:
 
-1. Execute physical validation per `combination-validation-runbook.md` (to be written)
+1. Execute physical validation per [combination-validation-runbook.md](../delivery/combination-validation-runbook.md)
 2. Record outcomes in the runbook
 3. Revise layer files and re-test any failing combination before setting `isAvailable: true`
 4. Complete S-5.6 pre-launch checklist sign-off

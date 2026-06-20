@@ -1,5 +1,5 @@
 ---
-description: Frontend architecture — folder structure, routing, state ownership, React Query, manifest consumption, and API boundaries for this project
+description: Frontend architecture — folder structure, routing, state ownership, manifest consumption, and API boundaries for this project
 alwaysApply: true
 ---
 
@@ -28,28 +28,25 @@ src/
 │   │   ├── GoalSelector.tsx
 │   │   └── availability.ts          # isAvailable(p, m, n, g) → boolean — no UI
 │   └── profile/
-│       ├── ProfilePage.tsx           # Thin route wrapper
+│       ├── ProfilePage.tsx           # Thin route wrapper; loads manifest entry by slug
 │       ├── ProfileCard.tsx
 │       ├── DownloadButton.tsx
 │       ├── ImportGuide.tsx
-│       └── FeedbackPrompt.tsx
+│       ├── FeedbackPrompt.tsx
+│       └── importGuides.ts           # Slicer-specific import step copy
 │
 ├── shared/                           # Design system only — zero product logic
-│   ├── Button.tsx
-│   ├── Card.tsx
 │   ├── SegmentedSelector.tsx
 │   ├── SearchableDropdown.tsx
 │   └── PageLayout.tsx
 │
-├── hooks/
-│   └── useProfileStats.ts            # The only shared hook at MVP
-│
 ├── lib/
+│   ├── manifest.ts                   # loadManifest, findManifestEntryBySlug, cache reset
 │   ├── slug.ts                       # encode/decode combination slugs
 │   └── url-params.ts                 # parse /configure query params
 │
 ├── types.ts                          # ALL domain types and constants — one file
-├── App.tsx                           # Router + QueryClientProvider
+├── App.tsx                           # Router only
 └── main.tsx
 ```
 
@@ -59,6 +56,7 @@ src/
 - `src/shared/` components have zero knowledge of domain entities. `SegmentedSelector` does not know it is displaying materials. Domain labels are applied at the page layer.
 - `src/types.ts` imports from nothing in the project. It is the dependency root.
 - `scripts/engine/types.ts` contains engine-internal types only. It never imports from `src/`.
+- There is no `src/hooks/` directory at MVP. Shared hooks are added when a second consumer exists.
 
 ---
 
@@ -72,13 +70,13 @@ Three routes. Configured in `App.tsx`.
 /profile/:slug          → ProfilePage
 ```
 
-`App.tsx` is also where `QueryClientProvider` is mounted. It is 20–30 lines at MVP. It does not need to be split into `router.tsx` and `providers.tsx`.
+`App.tsx` is router configuration only (~15 lines at MVP). It does not need to be split into `router.tsx` and `providers.tsx`.
 
 ---
 
 ## Page Structure
 
-**Page components are thin route wrappers.** `ConfigurePage.tsx` and `ProfilePage.tsx` render the layout wrapper and their primary feature component. They contain no logic.
+**Page components are thin route wrappers.** `ConfigurePage.tsx` and `ProfilePage.tsx` render the layout wrapper and their primary feature component. `ProfilePage` owns manifest loading for the slug param.
 
 **`CombinationForm.tsx`** is the only component that owns the full combination selection state (all four inputs). It:
 - derives the slicer format from the selected printer
@@ -86,7 +84,7 @@ Three routes. Configured in `App.tsx`.
 - controls the generate button state
 - delegates navigation on submit
 
-**`availability.ts`** is a module, not a component. It exports `isAvailable(printer, material, nozzle, goal): boolean`. It loads the manifest once and holds it in a module-level cache. It has no UI and no React dependency.
+**`availability.ts`** is a module, not a component. It exports `isAvailable`, `isMaterialAvailable`, and `isNozzleAvailable`. It delegates manifest loading to `lib/manifest.ts`. It has no UI and no React dependency.
 
 ---
 
@@ -98,64 +96,54 @@ The URL is the single source of truth for the current combination.
 |---|---|---|
 | Form inputs (4 values) | `CombinationForm` local state | Initialized from URL query params on mount |
 | Slicer format | Derived from printer in `CombinationForm` | Not shown in the UI at MVP |
-| Combination manifest | Module-level cache in `availability.ts` | One fetch per page load; never re-fetched |
-| Profile static data (title, highlights, file path) | Fetched from manifest at runtime on Profile page | Served as static JSON from `/combinations.json` |
-| Confidence count | Static placeholder at MVP | Stats API deferred post-launch (Cut 2) — shows "New profile — be the first to report results" |
+| Combination manifest | Module-level cache in `lib/manifest.ts` | One fetch per page load; never re-fetched |
+| Profile entry lookup | `ProfilePage` local state | Loads manifest, finds entry by slug |
+| Profile static data (title, highlights, file path) | Manifest entry on Profile page | Served as static JSON from `/combinations.json` |
+| Confidence count | Static placeholder in `ProfileCard` | Stats API deferred post-launch — shows "New profile — be the first to report results" |
 | `showImportGuide` | `ProfileCard` local state | Set via `DownloadButton` `onDownloadStarted` callback on first download |
-| Feedback prompt | Always rendered on Profile page | Visible on page load per S-3.8; not gated by download |
-| Feedback outcome | `FeedbackPrompt` local state | Shows confirmation on submit; API wired in M4 |
+| Feedback prompt | Always rendered on Profile page | Visible on page load; not gated by download |
+| Feedback outcome | `FeedbackPrompt` local state | Shows confirmation on submit; POST to `/api/feedback` |
 
 **There is no global store.** Zustand is not installed and is not used at MVP. If a component needs state, it owns it locally. The conditions for a global store — shared UI state across multiple routes, user account state — do not exist at MVP.
 
 ---
 
-## React Query
+## Async Data at MVP
 
-React Query is used for exactly **one** query at MVP: `useProfileStats`.
+All runtime data fetching uses plain `fetch`. There is no React Query / TanStack Query dependency.
 
-```typescript
-// src/hooks/useProfileStats.ts
-export function useProfileStats(slug: string) {
-  return useQuery({
-    queryKey: ['profile-stats', slug],
-    queryFn: () =>
-      fetch(`/api/profile/${slug}/stats`).then(r => r.json()),
-    staleTime: 1000 * 60,
-  });
-}
-```
+| Data | Loader | Pattern |
+|---|---|---|
+| Manifest | `lib/manifest.ts` | Module-level cache; used by `availability.ts` and `ProfilePage` |
+| Feedback submission | `FeedbackPrompt` | Fire-and-forget POST; no loading UI |
 
-`QueryClientProvider` is mounted once in `App.tsx`.
-
-Do not use React Query for manifest loading. The manifest is a static file loaded once with a plain `fetch` inside `availability.ts`. It does not need caching, refetching, or loading states.
-
-Do not introduce additional React Query hooks until a second async data requirement exists.
+Do not add a data-fetching library until a second async requirement with refetch or cache invalidation exists (e.g. post-launch stats endpoint).
 
 ---
 
 ## Manifest Consumption
 
-`generated/combinations.json` is a static file served from the CDN. It is the source of truth for which combinations are available and their metadata.
+`generated/combinations.json` is copied to `public/` during `build:profiles` and served as a static file. It is the source of truth for which combinations are available and their metadata.
 
 **How it is consumed:**
 
 ```typescript
-// src/pages/configure/availability.ts
-let manifest: Manifest | null = null;
+// src/lib/manifest.ts
+let manifestCache: Manifest | undefined = undefined;
 
-async function loadManifest(): Promise<Manifest> {
-  if (!manifest) {
-    manifest = await fetch('/combinations.json').then(r => r.json());
+export async function loadManifest(): Promise<Manifest> {
+  if (!manifestCache) {
+    const response = await fetch('/combinations.json');
+    if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
+    manifestCache = (await response.json()) as Manifest;
   }
-  return manifest;
+  return manifestCache;
 }
+```
 
-export async function isAvailable(
-  printer: string,
-  material: string,
-  nozzle: string,
-  goal: string,
-): Promise<boolean> {
+```typescript
+// src/pages/configure/availability.ts
+export async function isAvailable(printer, material, nozzle, goal): Promise<boolean> {
   const m = await loadManifest();
   return m.combinations.some(
     c => c.printer === printer && c.material === material &&
@@ -164,21 +152,23 @@ export async function isAvailable(
 }
 ```
 
-The manifest is loaded once on the Configure page and held in a module-level variable. There is no TanStack Query wrapper for it and no React state. It is a static file — a `fetch` with a module-level cache is sufficient.
+The manifest is loaded once per page session and held in a module-level variable. No React state wrapper is needed for a static file.
 
 ---
 
 ## API Boundaries
 
-Two runtime endpoints exist at MVP:
+Two runtime API routes exist at MVP (plus a health check):
 
 | Endpoint | Method | Called from | Notes |
 |---|---|---|---|
-| `/combinations.json` | GET (static) | `availability.ts` | Served from CDN — not a server route |
-| `/api/profile/:slug/stats` | GET | `useProfileStats` | Returns `{ confidenceCount: number }` |
-| `/api/feedback` | POST | `FeedbackPrompt` | Returns `{ ok: true }` |
+| `/combinations.json` | GET (static) | `lib/manifest.ts` | Served from CDN/static host — not a server route |
+| `/api/feedback` | POST | `FeedbackPrompt` | Returns `{ ok: true }` on success |
+| `/health` | GET | Ops / load balancer | Returns `ok` — API server liveness |
 
-**There is no `api` module abstraction.** Two endpoints do not justify a typed wrapper. Calls are made with plain `fetch` at the call site. If a third endpoint is added and the pattern repeats, extract then.
+**Deferred post-launch:** `GET /api/profile/:slug/stats` and a confidence-count hook. Not implemented at MVP.
+
+**There is no `api` module abstraction.** One POST endpoint does not justify a typed wrapper. Calls are made with plain `fetch` at the call site.
 
 **There is no `/api/generate` endpoint at MVP.** Slug construction happens client-side in `CombinationForm`. The slug is deterministic: `[printer]-[material]-[nozzle]-[goal]`. The form validates against the manifest client-side before navigating.
 
@@ -211,9 +201,9 @@ If a component is only used in one place and contains product logic, it stays in
 | Page components | `PascalCase.tsx` (`ConfigurePage.tsx`) |
 | Feature components | `PascalCase.tsx` (`CombinationForm.tsx`) |
 | Shared components | `PascalCase.tsx` (`SegmentedSelector.tsx`) |
-| Hooks | `use` + `PascalCase.ts` (`useProfileStats.ts`) |
-| Pure utilities | `camelCase.ts` (`slug.ts`, `url-params.ts`) |
-| Non-UI modules | `camelCase.ts` (`availability.ts`) |
+| Hooks | `use` + `PascalCase.ts` — add under `src/hooks/` when shared |
+| Pure utilities | `camelCase.ts` (`slug.ts`, `url-params.ts`, `manifest.ts`) |
+| Non-UI modules | `camelCase.ts` (`availability.ts`, `importGuides.ts`) |
 | Tests | `<filename>.test.ts(x)` colocated |
 | Types file | `types.ts` (singular, at `src/types.ts`) |
 
@@ -226,14 +216,18 @@ This is a hard list. If an agent suggests any of the following, it is out of sco
 | Pattern | Why it does not exist |
 |---|---|
 | `src/features/` | The project uses `src/pages/` — approved in `folder-structure.md` |
+| `src/hooks/` | No shared hooks yet; manifest and feedback are handled inline |
 | `src/store/` | No global store; Zustand is not installed |
 | `src/types/` directory | `src/types.ts` is a single file by explicit architectural decision |
+| `@tanstack/react-query` | Not installed; plain `fetch` is sufficient at MVP |
+| `SlicerOverride.tsx` | Cut at MVP — slicer format is derived from printer |
+| `Button.tsx` / `Card.tsx` in shared | Not built; native elements used at MVP |
 | Storybook | Not in the spec; not in any story |
-| `api.ts` per page/feature | Two direct `fetch` calls do not require an abstraction layer |
+| `api.ts` per page/feature | One direct `fetch` call does not require an abstraction layer |
 | `src/lib/httpClient.ts` | Not needed; plain `fetch` is sufficient |
 | `POST /api/generate` | Client-side slug construction replaces it |
+| `GET /api/profile/:slug/stats` | Deferred post-launch — static confidence message at MVP |
 | `forwardRef` | React 19 — `ref` is a prop |
-| Multiple `QueryClientProvider` instances | One, in `App.tsx` |
 
 ---
 
@@ -244,10 +238,9 @@ When Phase 1 work begins, these are the expected structural changes and where th
 | Phase 1 addition | Where it goes |
 |---|---|
 | User accounts | New `src/pages/account/` route; Zustand slice added to `src/stores/` |
-| Stats API goes live | `useProfileStats` already exists — no structural change |
+| Stats API | New `src/hooks/useProfileStats.ts`; add TanStack Query to `App.tsx` if refetch is needed |
 | Additional shared components | `src/shared/` grows; no restructuring needed |
 | `src/types.ts` grows past ~150 lines | Split into `src/types/domain.ts`, `src/types/manifest.ts` — mechanical refactor |
-| Second shared hook | `src/hooks/` already exists — add alongside `useProfileStats` |
-| Slicer override UI | Add `SlicerOverride.tsx` to `src/pages/configure/` |
+| Slicer override UI | Add `SlicerOverride.tsx` to `src/pages/configure/` if feedback shows demand |
 
 No structural change is needed for Phase 1 unless user accounts are introduced. The current structure supports it without pre-emptive abstraction.

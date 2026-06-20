@@ -36,7 +36,7 @@ Supported goals:
 
 Frontend:
 
-* React
+* React 19
 * TypeScript
 * Vite
 * React Router
@@ -46,6 +46,7 @@ Testing:
 * Vitest
 * Testing Library
 * Playwright
+* MSW
 
 Build tools:
 
@@ -60,13 +61,16 @@ CI:
 
 ## Project Structure
 
-src/
-scripts/
-layers/
-generated/
-tests/
-server/
-docs/
+```
+src/          React frontend
+scripts/      Profile engine and build pipeline
+layers/       Authored YAML parameter layers
+generated/    Build output (gitignored)
+public/       Static assets copied from generated/
+server/       Feedback API
+tests/        E2E and integration tests
+docs/         Architecture, decisions, and runbooks
+```
 
 ---
 
@@ -74,41 +78,61 @@ docs/
 
 ### Requirements
 
-* Node.js 22.x
+* Node.js 22.x (see `.nvmrc`)
 * npm 10+
+
+See [local-dev-setup.md](docs/delivery/local-dev-setup.md) for first-time setup.
 
 ### Clone
 
+```bash
 git clone <repository-url>
 cd printhub
+```
 
 ### Install dependencies
 
+```bash
 npm install
+```
 
 ### Run development server
 
+```bash
 npm run dev
+```
+
+Starts Vite (frontend) and the feedback API concurrently.
 
 ### Run tests
 
+```bash
 npm run test
+```
 
 ### Run E2E tests
 
+```bash
 npm run test:e2e
+```
 
 ### Type checking
 
+```bash
 npm run typecheck
+```
 
 ### Build generated profiles
 
+```bash
 npm run build:profiles
+```
 
 ### Build application
 
+```bash
 npm run build
+```
 
 ---
 
@@ -120,6 +144,18 @@ npm run build
 4. Serialize profile
 5. Generate manifest
 6. Build application
+
+---
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [ADR-003](docs/decisions/adr-003-deferred-physical-validation.md) | Engineering vs physical validation; launch readiness |
+| [Combination validation runbook](docs/delivery/combination-validation-runbook.md) | Physical test procedure before launch |
+| [Deployment runbook](docs/delivery/deployment-runbook.md) | Production deploy steps |
+| [Architecture overview](docs/delivery/architecture-overview.md) | System design and known MVP limitations |
+| [Local dev setup](docs/delivery/local-dev-setup.md) | Environment and common issues |
 
 ---
 
@@ -135,10 +171,24 @@ M4 — Runtime API ✅
 
 M5 — Launch Gate ⏳
 
-Pending:
+**Physical validation:** Deferred per [ADR-003](docs/decisions/adr-003-deferred-physical-validation.md). All 20 launch combinations are `THEORETICALLY_VALID` (engineering validation only). Real-hardware test prints (PV-1, PV-2) must complete before launch sign-off.
 
-* Physical printer validation
-* Launch checklist sign-off
+**Pending:**
+
+* Physical printer validation — follow [combination-validation-runbook.md](docs/delivery/combination-validation-runbook.md)
+* Launch checklist sign-off (S-5.6)
+
+---
+
+## MVP Limitations
+
+* Balanced goal only at launch (Quality deferred)
+* Static confidence message — stats API deferred post-launch
+* No slicer override UI — format derived from printer
+* File-based feedback storage — not suitable for high concurrent write volume
+* CSR only — profile pages not pre-rendered for SEO
+
+Full list: [architecture-overview.md §8](docs/delivery/architecture-overview.md#8-known-limitations)
 
 ---
 

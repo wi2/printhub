@@ -23,4 +23,4 @@ This directory contains operational guides written during and after the build ph
 | `how-to-add-a-material.md` | Same workflow, material-specific considerations |
 | `combination-validation-runbook.md` | Physical test checklist before `isAvailable: true` is set |
 | `local-dev-setup.md` | How to run the project locally from a fresh checkout |
-| `deployment-guide.md` | CI/CD pipeline, CDN invalidation, environment variables |
+| `deployment-runbook.md` | Production deploy, smoke tests, rollback |

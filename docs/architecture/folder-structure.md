@@ -43,7 +43,8 @@ The first version of this document was reviewed and found to contain several str
 | `generated/manifests/` subdirectory | One file does not warrant a subdirectory. Flattened to `generated/combinations.json`. |
 | Separate `tests/unit/` mirror tree | Unit tests for engine and serializers are colocated with their source files. Only E2E and integration tests live in `tests/`. |
 | `tests/fixtures/` with three subdirectories | Flat fixture directory is sufficient at MVP scale. |
-| `POST /api/generate` and `GET /api/profile/:slug/download` | Deferred. These routes exist primarily as analytics hooks. Client-side events cover the requirement at MVP. The two required runtime endpoints are feedback and stats. |
+| `POST /api/generate` and `GET /api/profile/:slug/download` | Deferred. These routes exist primarily as analytics hooks. Client-side events cover the requirement at MVP. |
+| `GET /api/profile/:slug/stats` | Deferred post-launch (Cut 2). Confidence count shows a static placeholder at MVP. |
 
 ---
 
@@ -101,32 +102,28 @@ src/
 │   │   ├── MaterialSelector.tsx
 │   │   ├── NozzleSelector.tsx
 │   │   ├── GoalSelector.tsx
-│   │   ├── SlicerOverride.tsx
 │   │   └── availability.ts          # No UI — isAvailable(p,m,n,g) → boolean
 │   │
 │   └── profile/
-│       ├── ProfilePage.tsx           # Thin route wrapper
+│       ├── ProfilePage.tsx           # Thin route wrapper; loads manifest entry by slug
 │       ├── ProfileCard.tsx
 │       ├── DownloadButton.tsx
 │       ├── ImportGuide.tsx
-│       └── FeedbackPrompt.tsx
+│       ├── FeedbackPrompt.tsx
+│       └── importGuides.ts           # Slicer-specific import step copy
 │
 ├── shared/
-│   ├── Button.tsx
-│   ├── Card.tsx
 │   ├── SegmentedSelector.tsx
 │   ├── SearchableDropdown.tsx
 │   └── PageLayout.tsx
 │
-├── hooks/
-│   └── useProfileStats.ts           # TanStack Query: GET /api/profile/:slug/stats
-│
 ├── lib/
+│   ├── manifest.ts                  # loadManifest, findManifestEntryBySlug, cache
 │   ├── slug.ts                      # Combination slug encode / decode
 │   └── url-params.ts                # Query param parsing for form pre-fill
 │
 ├── types.ts                         # All TypeScript types and domain constants
-├── App.tsx                          # Router setup + QueryClientProvider
+├── App.tsx                          # Router setup only
 └── main.tsx                         # Vite entry point
 ```
 
@@ -150,13 +147,10 @@ Design system primitives with no product logic. `SegmentedSelector` does not kno
 
 At Phase 1, if the shared component count grows, a `src/shared/ui/` subdirectory is the natural extraction. Not before.
 
-**`src/hooks/`**
-Shared hooks used by more than one page or consumed by multiple components. At MVP, one hook qualifies: `useProfileStats`. The manifest loading logic belongs in `availability.ts` (which reads the manifest directly in the configure page) — it does not need a dedicated hook because the manifest is a static file with one consumer.
-
-If `useProfileStats` were the only hook, it could live in `src/pages/profile/`. It is placed in `src/hooks/` because it is plausible it will be needed by other pages in Phase 1, and hooks are a natural shared abstraction.
-
 **`src/lib/`**
-Pure utilities with no React dependency. `slug.ts` is the canonical implementation of combination slug encoding and decoding — used by both the frontend and the engine scripts, so it lives outside `pages/` and outside `scripts/`. `url-params.ts` parses query parameters for the configure pre-fill contract.
+Pure utilities with no React dependency. `manifest.ts` loads and caches `combinations.json` — used by `availability.ts` and `ProfilePage`. `slug.ts` is the canonical implementation of combination slug encoding and decoding — used by both the frontend and the engine scripts, so it lives outside `pages/` and outside `scripts/`. `url-params.ts` parses query parameters for the configure pre-fill contract.
+
+There is no `src/hooks/` directory at MVP. Manifest loading does not need a hook; feedback submission is fire-and-forget in `FeedbackPrompt`. Add `src/hooks/` when a shared hook has a second consumer (e.g. post-launch stats).
 
 No `format.ts`. No speculative utility files. Files are added here when they have a known caller.
 
@@ -164,7 +158,7 @@ No `format.ts`. No speculative utility files. Files are added here when they hav
 One file. All TypeScript types and supported value constants for the MVP. Splitting into `domain.ts` / `api.ts` / `manifest.ts` adds import path management overhead that is not justified by a team of one or two developers working on three pages. The split is the right call at Phase 1 when the file grows past ~150 lines or multiple contributors begin working on separate concerns. Until then, one file is faster to navigate and simpler to maintain.
 
 **`src/App.tsx`**
-Router configuration and `QueryClientProvider` wrapper. At MVP this is 20–30 lines. It does not warrant decomposition into `router.tsx` and `providers.tsx`. When Phase 1 adds more providers or complex routing, the split is easy to make. Not before.
+Router configuration only. At MVP this is ~15 lines. It does not warrant decomposition into `router.tsx` and `providers.tsx`. When Phase 1 adds providers (e.g. TanStack Query for stats) or complex routing, the split is easy to make. Not before.
 
 ---
 
@@ -313,25 +307,29 @@ No file in `generated/` is ever edited by hand. Direct edits are overwritten on 
 
 ## API Organization
 
-The MVP requires exactly two runtime API endpoints. Everything else is a static file.
+The MVP requires one runtime API endpoint plus a health check. Everything else is a static file.
 
 ```
 server/
 ├── feedback.ts              # POST /api/feedback
-├── stats.ts                 # GET  /api/profile/:slug/stats
-├── validate-input.ts        # Input validation — shared by both routes
+├── manifest.ts              # Slug lookup for feedback validation
+├── rate-limit.ts            # Sliding-window rate limiter
+├── store.ts                 # JSON file feedback store
+├── validate-input.ts        # Input validation
 └── index.ts                 # Entry point and route registration
 ```
 
 `validate-input.ts` and any rate limiting logic live directly in `server/`. No `middleware/` subdirectory. Two shared utilities do not warrant a directory.
 
-### The two runtime endpoints
+### Runtime API routes
 
 **`GET /combinations.json`** — Static. Not a server route. Served from CDN. The frontend fetches it once on the configure page. Changing the manifest requires a build and deploy.
 
-**`GET /api/profile/:slug/stats`** — Returns `{confidenceCount}`. The only dynamic element on an otherwise static profile page. Fetched client-side on mount. Does not block render. Target: under 100ms.
+**`POST /api/feedback`** — Receives `{slug, outcome, failureReasons[]}`. Validates against manifest. Writes to feedback store. Returns `{ok}`. No authentication. Rate limiting applied (5 requests/minute/IP by default).
 
-**`POST /api/feedback`** — Receives `{slug, outcome, failureReasons[]}`. Validates. Writes to feedback store. Returns `{ok}`. No authentication. Rate limiting applied.
+**`GET /health`** — Returns `ok`. Used for load balancer health checks.
+
+**Deferred post-launch:** `GET /api/profile/:slug/stats` — confidence count UI shows a static placeholder at MVP.
 
 ### What was deferred
 
@@ -362,18 +360,17 @@ The URL query parameter contract for `/configure` is stable from day one: `print
 | State | Owner | Notes |
 |---|---|---|
 | Form input values (4 fields) | `CombinationForm` | Initialized from URL params on mount |
-| Slicer override selection | `CombinationForm` | Derived from printer; overridable |
-| `hasDownloaded` | `DownloadButton` | Drives import guide and feedback prompt visibility |
+| Slicer format | `CombinationForm` | Derived from printer; not user-overridable at MVP |
+| `showImportGuide` | `ProfileCard` | Set on first download via `DownloadButton` callback |
 | `feedbackOutcome` | `FeedbackPrompt` | Shows thank-you on submit |
 | Failure reason selections | `FeedbackPrompt` | Submitted and cleared |
+| Profile entry lookup | `ProfilePage` | Loads manifest, finds entry by slug |
 
 None of these need sharing across components. None survive navigation.
 
-### TanStack Query
+### Async data — plain fetch only
 
-Used for one fetch at MVP: `useProfileStats(slug)`, which calls `GET /api/profile/:slug/stats`. After a "Yes" feedback submission, the query is invalidated and refetched. The confidence count appears once the fetch resolves without blocking the static page render.
-
-The manifest is loaded via a plain `fetch` in `availability.ts` with a module-level cache. It is a one-time static file load — TanStack Query's caching machinery is not needed for it.
+No React Query / TanStack Query at MVP. The manifest is loaded via `lib/manifest.ts` with a module-level cache. Feedback is a fire-and-forget POST from `FeedbackPrompt`. The confidence count on profile pages is a static placeholder string.
 
 ### Zustand — not used at MVP
 
@@ -392,8 +389,7 @@ tests/
 │   └── unavailable-combination.spec.ts
 │
 ├── integration/
-│   ├── feedback.test.ts         # POST /api/feedback handler
-│   └── stats.test.ts            # GET  /api/profile/:slug/stats handler
+│   └── feedback.test.ts         # POST /api/feedback handler
 │
 └── fixtures/
     ├── combination.ts           # Valid and invalid combination inputs
@@ -421,7 +417,7 @@ Tests each API route handler against real HTTP requests with a test feedback sto
 
 ### End-to-end tests (Playwright, in `tests/e2e/`)
 
-**`generate-profile.spec.ts`** — Land → configure (fill 4 inputs) → generate → assert result page content → download → assert import guide appears → assert feedback prompt appears.
+**`generate-profile.spec.ts`** — Land → configure (fill 4 inputs) → generate → assert result page content → download → assert import guide appears. Feedback prompt is visible on page load (not gated by download).
 
 **`feedback.spec.ts`** — All three feedback paths: Yes (thank-you), No (failure reason form → thank-you), Haven't printed yet (not-yet message).
 
@@ -486,10 +482,9 @@ docs/
 **`docs/decisions/`** — Architecture Decision Records. One document per significant decision: problem, alternatives, chosen approach, trade-offs accepted. Append-only. Superseded decisions get a `[Superseded by: ...]` header added — they are not deleted.
 
 **`docs/delivery/`** — Operational guides written during the build phase:
-- `how-to-add-a-printer.md`
-- `how-to-add-a-material.md`
 - `combination-validation-runbook.md`
 - `local-dev-setup.md`
-- `deployment-guide.md`
+- `deployment-runbook.md`
+- `architecture-overview.md`
 
 Not backfilled with past decisions. Written for operational knowledge: how to do X on this specific project.

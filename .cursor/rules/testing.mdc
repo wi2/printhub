@@ -17,20 +17,21 @@ When rules conflict: `story-driven-development.mdc` → `product-owner.mdc` → 
 
 Define once per test file. Do not import from production code.
 
+At MVP there are no shared hooks in `src/hooks/`. When hook tests are added, wrap only the providers the hook needs. Most PrintHub hooks will need routing context or MSW — not a data-fetching library wrapper.
+
 ```typescript
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 
 export const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <MemoryRouter>{children}</MemoryRouter>
   );
 };
 ```
 
-Use for every `renderHook` call. A fresh `QueryClient` per test prevents cache bleed between tests.
+Use for every `renderHook` call. If a future hook uses TanStack Query, add `QueryClientProvider` here with `retry: false` — it is not installed at MVP.
+
+Reset module-level caches (e.g. `_resetManifestCache()` from `lib/manifest.ts`) in `afterEach` when testing manifest-dependent code.
 
 ---
 
@@ -344,34 +345,18 @@ expect(screen.queryByText('Exposed API key')).not.toBeInTheDocument();
 **Cover parameter changes and error paths, not just the success path.**
 
 ```typescript
-// useAlerts.test.ts
-describe('useAlerts', () => {
-  it('returns alerts for the given orgId', async () => {
-    server.use(http.get('/api/orgs/:orgId/alerts', () => HttpResponse.json([makeAlert()])));
-    const { result } = renderHook(() => useAlerts(toOrgId('org-1')), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toHaveLength(1);
+// useExample.test.ts — pattern for a custom hook that fetches with plain fetch + useState
+describe('useExample', () => {
+  it('returns data when the request succeeds', async () => {
+    server.use(http.get('/api/example', () => HttpResponse.json({ value: 42 })));
+    const { result } = renderHook(() => useExample(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.data).toEqual({ value: 42 }));
   });
 
   it('returns an error when the request fails', async () => {
-    server.use(http.get('/api/orgs/:orgId/alerts', () => HttpResponse.error()));
-    const { result } = renderHook(() => useAlerts(toOrgId('org-1')), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.isError).toBe(true));
-  });
-
-  it('re-fetches when orgId changes', async () => {
-    server.use(http.get('/api/orgs/:orgId/alerts', ({ params }) =>
-      HttpResponse.json([makeAlert({ title: `Alert for ${params.orgId}` })])
-    ));
-    const { result, rerender } = renderHook(
-      ({ orgId }) => useAlerts(orgId),
-      { wrapper: createWrapper(), initialProps: { orgId: toOrgId('org-1') } }
-    );
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.[0].title).toContain('org-1');
-
-    rerender({ orgId: toOrgId('org-2') });
-    await waitFor(() => expect(result.current.data?.[0].title).toContain('org-2'));
+    server.use(http.get('/api/example', () => HttpResponse.error()));
+    const { result } = renderHook(() => useExample(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.error).toBeDefined());
   });
 });
 ```
@@ -490,12 +475,13 @@ describe('Alerts feature', () => {
 
 **Justify every E2E test:** before adding one, answer "why can an integration test not cover this?" Acceptable answers: requires a real network stack, tests authentication flows, verifies browser-specific behavior (file download, clipboard, print).
 
-### Critical journeys for a security dashboard
+### Critical journeys for PrintHub
 
-- Authentication: login, session expiry redirect, logout
-- Primary dashboard: loads and displays real data
-- Alert escalation or dismissal end-to-end through real API
-- Report export producing a valid file
+- Configure flow: select combination → navigate to profile page
+- Profile download: download button serves the correct static file
+- Feedback submission: all three outcome paths POST to `/api/feedback`
+- URL pre-fill: `/configure?printer=…` loads with generate enabled when valid
+- Unavailable combination: disabled inputs and generate button when not in manifest
 
 ### Page Object Model
 
@@ -619,7 +605,7 @@ Use `vi.mock` only when MSW cannot intercept the dependency:
 | `window.matchMedia` | API calls |
 | `IntersectionObserver` | Feature modules |
 | `localStorage` / `sessionStorage` | Utility functions you control |
-| `navigator.clipboard` | React Query hooks |
+| `navigator.clipboard` | Hooks that wrap browser APIs with no fetch equivalent |
 | Third-party analytics SDKs (no fetch) | Any module with a fetch equivalent |
 
 ### Factories over static fixtures
@@ -657,7 +643,7 @@ Coverage is a floor, not a goal. 100% coverage with tests that verify the wrong 
 
 | Skip | Why |
 |---|---|
-| Third-party library internals | React, React Query, Zustand are tested by their maintainers |
+| Third-party library internals | React, React Router, Zustand are tested by their maintainers |
 | CSS classes and visual appearance | Verify with Storybook + visual diff tooling |
 | Snapshot tests for UI components | Approve silently, break on every render — false confidence |
 | Props passed through to child components | Structural, not behavioral — test what the user sees |
