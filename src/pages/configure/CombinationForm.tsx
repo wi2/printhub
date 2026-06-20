@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MATERIALS, NOZZLE_SIZES, PRINTERS } from '../../types';
+import { PRINTERS, MATERIALS, NOZZLE_SIZES, isGoalSelectable } from '../../types';
 import { isAvailable, isMaterialAvailable, isNozzleAvailable } from './availability';
 import { buildSlug } from '../../lib/slug';
 import { parseConfigureParams } from '../../lib/url-params';
@@ -93,7 +93,7 @@ export function CombinationForm() {
     return () => { cancelled = true; };
   }, [printer, material, nozzle]);
 
-  const isComplete = Boolean(printer && material && nozzle && goal);
+  const isComplete = Boolean(printer && material && nozzle && goal && isGoalSelectable(goal));
   const canGenerate = isComplete && !nozzleMessage;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

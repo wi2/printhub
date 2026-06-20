@@ -1,13 +1,6 @@
-import type { Manifest } from '../../types';
+import { loadManifest, _resetManifestCache } from '../../lib/manifest';
 
-let manifest: Manifest | undefined = undefined;
-
-async function loadManifest(): Promise<Manifest> {
-  if (!manifest) {
-    manifest = (await fetch('/combinations.json').then(r => r.json())) as Manifest;
-  }
-  return manifest;
-}
+export { _resetManifestCache };
 
 /**
  * Returns true if a validated profile exists for the given printer + material +
@@ -63,12 +56,4 @@ export async function isNozzleAvailable(
       c.nozzle === nozzle &&
       c.isAvailable,
   );
-}
-
-/**
- * Resets the module-level manifest cache.
- * Call this in afterEach when testing to prevent cache bleed between tests.
- */
-export function _resetManifestCache(): void {
-  manifest = undefined;
 }

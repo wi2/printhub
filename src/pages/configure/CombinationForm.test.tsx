@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { server } from '../../lib/msw/server';
-import { _resetManifestCache } from './availability';
+import { _resetManifestCache } from '../../lib/manifest';
 import { CombinationForm } from './CombinationForm';
 import { PRINTERS } from '../../types';
 
@@ -92,6 +92,27 @@ describe('CombinationForm', () => {
     it('renders the Generate profile button', () => {
       renderForm();
       expect(screen.getByRole('button', { name: 'Generate profile' })).toBeInTheDocument();
+    });
+  });
+
+  describe('goal availability', () => {
+    it('disables the Quality goal and shows Coming soon', () => {
+      renderForm();
+
+      expect(screen.getByRole('radio', { name: 'Quality' })).toBeDisabled();
+      expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    });
+
+    it('does not pre-fill Quality from URL params', async () => {
+      renderFormWithRouter(
+        '/configure?printer=bambu-a1-mini&material=pla&nozzle=0.4&goal=quality',
+      );
+
+      await waitFor(() =>
+        expect(screen.getByDisplayValue('Bambu Lab A1 Mini')).toBeInTheDocument(),
+      );
+      expect(screen.getByRole('radio', { name: 'Quality' })).not.toBeChecked();
+      expect(screen.getByRole('button', { name: 'Generate profile' })).toBeDisabled();
     });
   });
 

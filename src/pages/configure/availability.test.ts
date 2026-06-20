@@ -5,8 +5,8 @@ import {
   isAvailable,
   isMaterialAvailable,
   isNozzleAvailable,
-  _resetManifestCache,
 } from './availability';
+import { _resetManifestCache } from '../../lib/manifest';
 
 // Minimal manifest used across tests
 const TEST_MANIFEST = {
@@ -96,23 +96,5 @@ describe('isNozzleAvailable', () => {
   it('returns false when no profile exists for printer + material + nozzle', async () => {
     mockManifest();
     await expect(isNozzleAvailable('bambu-a1-mini', 'pla', '0.6')).resolves.toBe(false);
-  });
-});
-
-describe('manifest caching', () => {
-  it('fetches the manifest only once across multiple calls', async () => {
-    let fetchCount = 0;
-    server.use(
-      http.get('/combinations.json', () => {
-        fetchCount++;
-        return HttpResponse.json(TEST_MANIFEST);
-      }),
-    );
-
-    await isAvailable('bambu-a1-mini', 'pla', '0.4', 'balanced');
-    await isAvailable('bambu-a1-mini', 'petg', '0.4', 'balanced');
-    await isMaterialAvailable('bambu-a1-mini', 'pla');
-
-    expect(fetchCount).toBe(1);
   });
 });

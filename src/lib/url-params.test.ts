@@ -39,6 +39,18 @@ describe('parseConfigureParams', () => {
     });
   });
 
+  it('silently omits an unavailable goal value', () => {
+    const params = new URLSearchParams(
+      'printer=bambu-a1-mini&material=pla&nozzle=0.4&goal=quality',
+    );
+
+    expect(parseConfigureParams(params)).toEqual({
+      printer: 'bambu-a1-mini',
+      material: 'pla',
+      nozzle: '0.4',
+    });
+  });
+
   it('returns an empty object when no recognized params are present', () => {
     expect(parseConfigureParams(new URLSearchParams(''))).toEqual({});
     expect(parseConfigureParams(new URLSearchParams('foo=bar'))).toEqual({});

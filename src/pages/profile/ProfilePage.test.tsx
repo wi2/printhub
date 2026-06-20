@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, delay } from 'msw';
 import { server } from '../../lib/msw/server';
+import { _resetManifestCache } from '../../lib/manifest';
 import type { ManifestEntry } from '../../types';
 import { ProfilePage } from './ProfilePage';
 
@@ -51,11 +52,61 @@ describe('ProfilePage', () => {
   });
 
   afterEach(() => {
+    _resetManifestCache();
     // Remove the clipboard stub so each test starts with a fresh installation.
     Object.defineProperty(navigator, 'clipboard', {
       writable: true,
       configurable: true,
       value: undefined,
+    });
+  });
+
+  describe('while the manifest is loading', () => {
+    it('shows an accessible loading status', () => {
+      server.use(
+        http.get('/combinations.json', async () => {
+          await delay('infinite');
+          return HttpResponse.json({ combinations: [MOCK_ENTRY] });
+        }),
+      );
+
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+
+      expect(screen.getByRole('status')).toHaveTextContent(/loading profile/i);
+    });
+  });
+
+  describe('when the manifest request fails', () => {
+    beforeEach(() => {
+      server.use(http.get('/combinations.json', () => HttpResponse.error()));
+    });
+
+    it('shows an error message instead of the not-found page', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
+        'Could not load profile',
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i);
+    });
+
+    it('loads the profile after Try again when the manifest request succeeds', async () => {
+      const user = userEvent.setup();
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+
+      await screen.findByRole('button', { name: 'Try again' });
+
+      server.use(
+        http.get('/combinations.json', () =>
+          HttpResponse.json({ combinations: [MOCK_ENTRY] }),
+        ),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+      expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
+        'Bambu Lab A1 Mini · PLA · 0.4mm · Balanced',
+      );
     });
   });
 

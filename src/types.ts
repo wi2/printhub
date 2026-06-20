@@ -51,6 +51,17 @@ export const GOALS = [
   { id: 'quality',  name: 'Quality',  description: 'Best surface finish. Slower print time. Good for display pieces.' },
 ] as const satisfies PrintGoal[];
 
+/** Goal IDs defined in GOALS that are not yet selectable in the configure form. */
+export const UNAVAILABLE_GOAL_IDS: readonly string[] = ['quality'];
+
+/**
+ * Returns true when a goal id is known and currently selectable in the UI.
+ * Unavailable goals remain in GOALS but render as disabled "coming soon" options.
+ */
+export function isGoalSelectable(goalId: string): boolean {
+  return GOALS.some(goal => goal.id === goalId) && !UNAVAILABLE_GOAL_IDS.includes(goalId);
+}
+
 export const SLICER_FORMATS = [
   { id: 'prusaslicer', name: 'PrusaSlicer',                fileExtension: '.ini'  },
   { id: 'bambu-orca',  name: 'Bambu Studio / Orca Slicer', fileExtension: '.3mf'  },

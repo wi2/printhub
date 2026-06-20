@@ -1,4 +1,4 @@
-import { PRINTERS, MATERIALS, NOZZLE_SIZES, GOALS } from '../types';
+import { PRINTERS, MATERIALS, NOZZLE_SIZES, isGoalSelectable } from '../types';
 
 /** Validated configure form values parsed from URL query parameters. */
 export type ParsedConfigureParams = {
@@ -21,7 +21,7 @@ function isKnownNozzle(value: string): boolean {
 }
 
 function isKnownGoal(value: string): boolean {
-  return GOALS.some(goal => goal.id === value);
+  return isGoalSelectable(value);
 }
 
 /**

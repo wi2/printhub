@@ -1,14 +1,21 @@
 import { useId } from 'react';
-import { GOALS } from '../../types';
+import { GOALS, UNAVAILABLE_GOAL_IDS } from '../../types';
 
 type GoalSelectorProps = {
   value: string | undefined;
   onChange: (goalId: string) => void;
 };
 
+function isGoalDisabled(goalId: string): boolean {
+  return UNAVAILABLE_GOAL_IDS.includes(goalId);
+}
+
 /**
  * Two-card selector for print goals. Each card shows the goal name and its
  * description so the user can make an informed choice.
+ *
+ * Unavailable goals remain visible but disabled with a "Coming soon" label so
+ * users understand the option exists but is not yet shipped.
  *
  * aria-labelledby on each radio points to the name <span> only — not the
  * description — so the radio's accessible name is "Balanced", not the full
@@ -24,8 +31,12 @@ export function GoalSelector({ value, onChange }: GoalSelectorProps) {
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
         {GOALS.map(goal => {
           const isSelected = goal.id === value;
+          const isDisabled = isGoalDisabled(goal.id);
           const nameId = `${baseId}-${goal.id}-name`;
           const descId = `${baseId}-${goal.id}-desc`;
+          const comingSoonId = `${baseId}-${goal.id}-coming-soon`;
+          const describedBy = isDisabled ? `${descId} ${comingSoonId}` : descId;
+
           return (
             <label
               key={goal.id}
@@ -35,8 +46,9 @@ export function GoalSelector({ value, onChange }: GoalSelectorProps) {
                 padding: '0.75rem 1rem',
                 border: `2px solid ${isSelected ? '#111' : '#ccc'}`,
                 borderRadius: '6px',
-                cursor: 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 backgroundColor: isSelected ? '#f0f0f0' : '#fff',
+                opacity: isDisabled ? 0.6 : 1,
                 userSelect: 'none',
               }}
             >
@@ -49,8 +61,9 @@ export function GoalSelector({ value, onChange }: GoalSelectorProps) {
                 value={goal.id}
                 checked={isSelected}
                 onChange={() => onChange(goal.id)}
+                disabled={isDisabled}
                 aria-labelledby={nameId}
-                aria-describedby={descId}
+                aria-describedby={describedBy}
                 style={{
                   position: 'absolute',
                   width: '1px',
@@ -63,8 +76,30 @@ export function GoalSelector({ value, onChange }: GoalSelectorProps) {
                   border: 0,
                 }}
               />
-              <div id={nameId} style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                {goal.name}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: 600,
+                  marginBottom: '0.25rem',
+                }}
+              >
+                <span id={nameId}>{goal.name}</span>
+                {isDisabled && (
+                  <span
+                    id={comingSoonId}
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: '#666',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    Coming soon
+                  </span>
+                )}
               </div>
               <div id={descId} style={{ fontSize: '0.875rem', color: '#555' }}>
                 {goal.description}
