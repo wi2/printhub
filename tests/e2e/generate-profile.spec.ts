@@ -42,7 +42,8 @@ test.describe('primary generate flow', () => {
     await expect(page).toHaveURL(`/profile/${SLUG}`, { timeout: 5_000 });
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(PROFILE_TITLE);
 
-    const highlights = page.getByRole('listitem');
+    const highlightsSection = page.getByRole('heading', { name: 'Key settings in this profile' }).locator('..');
+    const highlights = highlightsSection.getByRole('listitem');
     await expect(highlights).toHaveCount(3);
     await expect(highlights.first()).toContainText('200mm/s');
 

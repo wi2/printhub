@@ -636,6 +636,20 @@ Same scope and acceptance criteria as S-5.5. Executes when Prusa MK4, Creality E
 
 ---
 
+## Post-M5: Product Polish (PP)
+
+Engineering polish pass completed after M5. No new routes or features — copy, layout, and visual hierarchy improvements only.
+
+| Story | Summary | Status |
+|---|---|---|
+| PP-1 | Home page onboarding: how-it-works, supported scope, validation honesty (ADR-003), coming soon | Complete |
+| PP-2 | Configure page intro copy; global CSS; PageLayout header/footer | Complete |
+| PP-3 | Profile page: config summary, highlights card, validation status, before-printing guidance, download filename | Complete |
+
+Deferred items from this pass are tracked in `docs/delivery/backlog.md`.
+
+---
+
 ## What is deferred to Phase 1
 
 These items are explicitly out of scope for the MVP and are not tracked as stories here. They are documented to prevent scope creep.

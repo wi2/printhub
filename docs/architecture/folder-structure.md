@@ -122,6 +122,9 @@ src/
 │   ├── slug.ts                      # Combination slug encode / decode
 │   └── url-params.ts                # Query param parsing for form pre-fill
 │
+├── styles/
+│   └── global.css                   # Minimal global styles — typography, layout, buttons, cards
+│
 ├── types.ts                         # All TypeScript types and domain constants
 ├── App.tsx                          # Router setup only
 └── main.tsx                         # Vite entry point

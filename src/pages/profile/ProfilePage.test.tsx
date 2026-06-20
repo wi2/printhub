@@ -120,7 +120,12 @@ describe('ProfilePage', () => {
 
     it('renders three highlight sentences from the manifest', async () => {
       renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
-      expect(await screen.findAllByRole('listitem')).toHaveLength(3);
+      await screen.findByRole('heading', { name: 'Key settings in this profile' });
+      const highlightsSection = screen.getByRole('heading', {
+        name: 'Key settings in this profile',
+      }).closest('section');
+      expect(highlightsSection).not.toBeNull();
+      expect(highlightsSection!.querySelectorAll('li')).toHaveLength(3);
     });
 
     it('renders the confidence count placeholder', async () => {

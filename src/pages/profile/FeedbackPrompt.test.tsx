@@ -18,7 +18,7 @@ describe('FeedbackPrompt', () => {
     render(<FeedbackPrompt slug={SLUG} />);
 
     expect(
-      screen.getByText('Did your print succeed with this profile?'),
+      screen.getByRole('heading', { name: 'How did your print go?' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yes — it worked' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'No — it failed' })).toBeInTheDocument();

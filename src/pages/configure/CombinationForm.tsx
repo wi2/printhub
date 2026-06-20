@@ -140,7 +140,7 @@ export function CombinationForm() {
         <div>
           <NozzleSelector value={nozzle} onChange={setNozzle} />
           {nozzleMessage && (
-            <p role="alert" style={{ marginTop: '0.5rem', color: '#c00', fontSize: '0.875rem' }}>
+            <p role="alert" className="alert">
               {nozzleMessage}
             </p>
           )}
@@ -150,22 +150,13 @@ export function CombinationForm() {
       <div>
         <button
           type="submit"
+          className="btn btn-primary"
           disabled={!canGenerate || isSubmitting}
-          style={{
-            padding: '0.75rem 2rem',
-            fontSize: '1rem',
-            fontWeight: 600,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: canGenerate && !isSubmitting ? 'pointer' : 'not-allowed',
-            backgroundColor: canGenerate && !isSubmitting ? '#111' : '#ccc',
-            color: canGenerate && !isSubmitting ? '#fff' : '#666',
-          }}
         >
           {isSubmitting ? 'Generating…' : 'Generate profile'}
         </button>
         {submitError && (
-          <p role="alert" style={{ marginTop: '0.5rem', color: '#c00', fontSize: '0.875rem' }}>
+          <p role="alert" className="alert">
             {submitError}
           </p>
         )}

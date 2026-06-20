@@ -103,30 +103,33 @@ export function FeedbackPrompt({ slug }: FeedbackPromptProps) {
 
   if (state.status === 'confirmed') {
     return (
-      <section aria-label="Print feedback">
-        <p role="status">{state.message}</p>
+      <section className="card" aria-label="Print feedback">
+        <p role="status" style={{ margin: 0 }}>
+          {state.message}
+        </p>
       </section>
     );
   }
 
   if (state.status === 'failure-form') {
     return (
-      <section aria-label="Print feedback">
-        <p id="failure-question">What went wrong?</p>
-        <fieldset aria-labelledby="failure-question">
+      <section className="card" aria-label="Print feedback">
+        <h2 id="failure-question">What went wrong?</h2>
+        <fieldset aria-labelledby="failure-question" style={{ border: 'none', padding: 0, margin: 0 }}>
           {FAILURE_REASONS.map(reason => (
-            <label key={reason}>
+            <label key={reason} style={{ display: 'block', marginBottom: '0.5rem' }}>
               <input
                 type="checkbox"
                 checked={state.selectedReasons.includes(reason)}
                 onChange={() => handleToggleReason(reason)}
-              />
+              />{' '}
               {reason}
             </label>
           ))}
         </fieldset>
         <button
           type="button"
+          className="btn btn-primary"
           disabled={state.selectedReasons.length === 0}
           onClick={handleSubmitFailure}
         >
@@ -137,20 +140,24 @@ export function FeedbackPrompt({ slug }: FeedbackPromptProps) {
   }
 
   return (
-    <section aria-label="Print feedback">
-      <p>Did your print succeed with this profile?</p>
-      <button type="button" onClick={handleSuccess}>
-        Yes — it worked
-      </button>
-      <button
-        type="button"
-        onClick={() => setState({ status: 'failure-form', selectedReasons: [] })}
-      >
-        No — it failed
-      </button>
-      <button type="button" onClick={handlePending}>
-        I haven&apos;t printed yet
-      </button>
+    <section className="card" aria-label="Print feedback">
+      <h2>How did your print go?</h2>
+      <p className="text-muted">Your feedback helps improve this profile for others.</p>
+      <div className="btn-group">
+        <button type="button" className="btn btn-secondary" onClick={handleSuccess}>
+          Yes — it worked
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setState({ status: 'failure-form', selectedReasons: [] })}
+        >
+          No — it failed
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={handlePending}>
+          I haven&apos;t printed yet
+        </button>
+      </div>
     </section>
   );
 }

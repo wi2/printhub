@@ -56,9 +56,28 @@ describe('ProfileCard download flow (S-3.7)', () => {
     render(<ProfileCard entry={BAMBU_ENTRY} />);
 
     expect(
-      screen.getByText('Did your print succeed with this profile?'),
+      screen.getByRole('heading', { name: 'How did your print go?' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText('Download started')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows validation status and before-printing guidance', () => {
+    render(<ProfileCard entry={BAMBU_ENTRY} />);
+
+    expect(screen.getByRole('heading', { name: 'Validation status' })).toBeInTheDocument();
+    expect(screen.getByText(/engineering validation/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Before you print' })).toBeInTheDocument();
+    expect(
+      screen.getByText('New profile — be the first to report results.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the download filename for confidence', () => {
+    render(<ProfileCard entry={BAMBU_ENTRY} />);
+
+    expect(
+      screen.getByLabelText('Download filename'),
+    ).toHaveTextContent('bambu-a1-mini-pla-04mm-balanced.3mf');
   });
 
   it('reveals the import guide and download confirmation after the first download click', async () => {

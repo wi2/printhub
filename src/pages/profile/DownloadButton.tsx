@@ -32,7 +32,7 @@ export function DownloadButton({ entry, onDownloadStarted }: DownloadButtonProps
   }
 
   return (
-    <button type="button" onClick={handleDownload}>
+    <button type="button" className="btn btn-primary" onClick={handleDownload}>
       Download profile
     </button>
   );

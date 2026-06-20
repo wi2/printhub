@@ -24,3 +24,4 @@ This directory contains operational guides written during and after the build ph
 | `combination-validation-runbook.md` | Physical test checklist before `isAvailable: true` is set |
 | `local-dev-setup.md` | How to run the project locally from a fresh checkout |
 | `deployment-runbook.md` | Production deploy, smoke tests, rollback |
+| `backlog.md` | Deferred UX, design, and technical items identified post-MVP |

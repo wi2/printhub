@@ -45,9 +45,12 @@ src/
 │   ├── slug.ts                       # encode/decode combination slugs
 │   └── url-params.ts                 # parse /configure query params
 │
+├── styles/
+│   └── global.css                    # Global typography, layout, buttons, cards — imported in main.tsx
+│
 ├── types.ts                          # ALL domain types and constants — one file
 ├── App.tsx                           # Router only
-└── main.tsx
+└── main.tsx                          # Vite entry; imports global.css
 ```
 
 **Boundary rules:**
@@ -221,7 +224,7 @@ This is a hard list. If an agent suggests any of the following, it is out of sco
 | `src/types/` directory | `src/types.ts` is a single file by explicit architectural decision |
 | `@tanstack/react-query` | Not installed; plain `fetch` is sufficient at MVP |
 | `SlicerOverride.tsx` | Cut at MVP — slicer format is derived from printer |
-| `Button.tsx` / `Card.tsx` in shared | Not built; native elements used at MVP |
+| `Button.tsx` / `Card.tsx` in shared | Not built; CSS utility classes in `global.css` at MVP |
 | Storybook | Not in the spec; not in any story |
 | `api.ts` per page/feature | One direct `fetch` call does not require an abstraction layer |
 | `src/lib/httpClient.ts` | Not needed; plain `fetch` is sufficient |
