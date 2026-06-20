@@ -48,8 +48,23 @@ Items identified during delivery but explicitly deferred. Do not implement from 
 
 ---
 
+## Architecture
+
+Items required to operationalise [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md). None block launch. All are pre-conditions for V2 work.
+
+| ID | Item | Rationale for deferral |
+|---|---|---|
+| ARCH-1 | Shared canonical JSON profile schema | Required before V2 dynamic generation can be designed. Schema is implicit at MVP; must be made explicit and versioned. |
+| ARCH-2 | JSON profile versioning strategy | Needed before feedback (V3) can correlate outcomes to specific parameter snapshots. `schemaVersion` field and migration path must be agreed before V2 ships. |
+| ARCH-3 | Import/export compatibility test suite | Round-trip fidelity (canonical JSON → slicer format → re-parsed values) must be verified before dynamic generation serves real users. |
+| ARCH-4 | Serializer conformance tests | Each serializer must have tests asserting canonical JSON input produces the correct slicer-native output. Currently tested indirectly via build output snapshots. |
+| ARCH-5 | Additional slicer support evaluation | SuperSlicer, ideaMaker, and Cura are candidates. Evaluation is gated on ARCH-1 (a stable canonical schema is a prerequisite for assessing serializer effort). |
+
+---
+
 ## Related documents
 
 - MVP scope and deferred features: `docs/delivery/epic-mvp.md` (Phase 1 table)
 - Physical validation: `docs/decisions/adr-003-deferred-physical-validation.md`
+- Canonical profile format decision: `docs/decisions/adr-004-json-as-canonical-profile-format.md`
 - Phase 1 roadmap: `docs/discovery/roadmap.md`
