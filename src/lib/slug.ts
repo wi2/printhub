@@ -2,7 +2,6 @@
  * Constructs the canonical combination slug used in profile URLs and filenames.
  * Format: [printer]-[material]-[nozzleSlug]-[goal]
  * Nozzle transformation: "0.4" → "04mm", "0.6" → "06mm"
- * Must stay in sync with the build script's `buildSlug` in scripts/build.ts.
  */
 export function buildSlug(
   printer: string,

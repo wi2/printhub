@@ -81,14 +81,16 @@ Returns `{ valid: true }` or `{ valid: false, violations }`. Combinations that f
 
 ### Serializers (`scripts/serializers/`)
 
-Translate resolved parameters into slicer-native formats:
+Translate canonical JSON profiles into slicer-native formats. Serializers consume `CanonicalProfile` (defined in `scripts/schema/canonical-profile.ts`), not raw resolver output.
 
 | Serializer | Output | Printers |
 |---|---|---|
 | `prusaslicer.ts` | `.ini` config bundle | Prusa MK4, Creality Ender 3 V3 SE |
 | `bambu-orca.ts` | `.3mf` archive | Bambu A1 Mini, Bambu X1 Carbon, Creality K1 |
 
-Each serializer maps internal parameter names to slicer-specific keys and hardcodes invariant fields required for valid import.
+Each serializer maps internal parameter names to slicer-specific keys and hardcodes invariant fields required for valid import. Cross-material values (e.g. filament density) are sourced from `scripts/material-properties.ts`, not hardcoded in individual serializers.
+
+**M6 serializer scope:** Serializers read resolved parameter values directly. Parameters such as `motionSystem` are present in resolved profiles but are not used for kinematic branching at launch — see [parameter-schema.md](../architecture/parameter-schema.md).
 
 ### Build pipeline (`scripts/build.ts`)
 
@@ -96,8 +98,8 @@ Orchestrates the full generation run:
 
 1. Load shared layers (`global-defaults.yaml`, `guardrails.yaml`)
 2. For each launch combination (20 at MVP): load printer, material, goal, nozzle, and optional override layers
-3. Resolve → validate → serialize
-4. Write profile files to `generated/profiles/`
+3. Resolve → validate → build canonical JSON profile → serialize
+4. Write profile files to `generated/profiles/` (JSON + slicer-native). Filenames and manifest slugs come from `canonical.metadata.slug`, constructed via the shared `src/lib/slug.ts` utility.
 5. Write `generated/combinations.json` manifest (slug, metadata, download path, highlights)
 6. Copy artifacts to `public/` via `publish-generated.ts` for Vite dev and production builds
 
@@ -138,7 +140,9 @@ Resolve Parameters
         ↓
 Validate Guardrails
         ↓
-Serialize Profile
+Build Canonical JSON Profile
+        ↓
+Serialize Profile (.ini / .3mf)
         ↓
 Generate Manifest
         ↓
@@ -151,6 +155,7 @@ Frontend Consumption
 generated/
   combinations.json          ← manifest (slug, metadata, downloadPath, highlights)
   profiles/
+    [slug].json              ← canonical JSON profile (slicer-agnostic, build artifact)
     prusaslicer/[slug].ini
     bambu-orca/[slug].3mf
 
@@ -229,7 +234,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | **Guardrail validation** | Four critical parameters checked against material/printer-specific bounds before a combination enters the manifest. Failed combinations are skipped, not shipped. | `scripts/engine/validate.ts` |
 | **Deferred physical validation** | M5 engineering is complete; launch profiles pass automated validation only (`THEORETICALLY_VALID`). Real-hardware test prints (`PHYSICALLY_VALIDATED`) are deferred until printer access is available. | [ADR-003](../decisions/adr-003-deferred-physical-validation.md) |
 | **No database for MVP** | Manifest is a static JSON file; feedback is a JSON file store. No Postgres, SQLite, or Redis at launch. | `server/store.ts` |
-| **JSON as canonical profile format (V2+)** | A typed JSON document will sit between the resolver output and the serializers in V2, enabling profile versioning, feedback linkage, and optimization. At V1 the resolver output flows directly to serializers with no intermediate structured representation. | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md) |
+| **JSON as canonical profile format** | A typed JSON document sits between the resolver output and the serializers (M6). Serializers consume `CanonicalProfile`; slicer-native formats are outputs only. Enables V2+ versioning, feedback linkage, and optimization. | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [canonical-profile-model.md](../architecture/canonical-profile-model.md) |
 
 ---
 
@@ -252,7 +257,7 @@ This document describes the V1 (MVP) architecture. The following planned changes
 
 | Phase | Change | Reference |
 |---|---|---|
-| **V2** | Canonical JSON inserted between resolver and serializers; `ProfileVersion` records persisted per build; feedback store migrated to SQLite | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
+| **V2** | `ProfileVersion` records persisted to SQLite; feedback store migrated; feedback-to-version linkage | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
 | **V2–V3** | Stats API (`GET /api/profile/:slug/stats`) implemented; confidence scoring added to `ProfilePage` | [backlog.md V3 stories](./backlog.md) |
 | **V4–V5** | Parameter comparison, rule-based suggestions, AI recommendation pipeline — all with mandatory human review | [roadmap-v2-v5.md](./roadmap-v2-v5.md) |
 

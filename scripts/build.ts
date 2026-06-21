@@ -15,6 +15,7 @@
  *   generated/
  *     combinations.json               — manifest consumed by the frontend
  *     profiles/
+ *       [slug].json                   — canonical JSON profile (slicer-agnostic)
  *       prusaslicer/[slug].ini        — for Prusa MK4 and Creality Ender 3 V3 SE
  *       bambu-orca/[slug].3mf         — for Bambu A1 Mini, X1C, and Creality K1
  */
@@ -26,11 +27,14 @@ import { resolve as resolveLayers } from './engine/resolve.js';
 import { validate } from './engine/validate.js';
 import { serialize as serializePrusaSlicer } from './serializers/prusaslicer.js';
 import { serialize as serializeBambuOrca } from './serializers/bambu-orca.js';
+import { buildCanonicalProfile } from './schema/build-canonical-profile.js';
+import { serializeCanonicalProfileToJson } from './schema/serialize-canonical-profile.js';
 import { publishGeneratedToPublic } from './publish-generated.js';
 import type { LayerSchema, GuardrailBounds } from './engine/types.js';
 import { PRINTERS } from '../src/types.js';
-import type { ManifestEntry, Combination } from '../src/types.js';
+import type { ManifestEntry } from '../src/types.js';
 import { HIGHLIGHTS } from './highlights.js';
+import { buildSlug } from '../src/lib/slug.js';
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -87,16 +91,6 @@ function nozzleLayerFile(nozzleId: string): string {
   return `${nozzleId}mm.yaml`;
 }
 
-/** Converts a nozzle ID (e.g. "0.4") to the slug segment (e.g. "04mm"). */
-function nozzleSlugSegment(nozzleId: string): string {
-  return `${nozzleId.replace('.', '')}mm`;
-}
-
-/** Constructs the canonical slug for a combination. */
-function buildSlug(spec: LaunchSpec): string {
-  return `${spec.printer}-${spec.material}-${nozzleSlugSegment(spec.nozzle)}-${spec.goal}`;
-}
-
 /** Looks up the slicer format for a printer ID. Returns 'prusaslicer' or 'bambu-orca'. */
 function slicerFormatForPrinter(printerId: string): 'prusaslicer' | 'bambu-orca' {
   const printer = PRINTERS.find(p => p.id === printerId);
@@ -130,7 +124,7 @@ function run(): void {
   console.log(`PrintHub build — ${LAUNCH_COMBINATIONS.length} combinations\n`);
 
   for (const spec of LAUNCH_COMBINATIONS) {
-    const slug = buildSlug(spec);
+    const slug = buildSlug(spec.printer, spec.material, spec.nozzle, spec.goal);
 
     // Load combination-specific layers.
     const printerLayer  = loadLayer(join(LAYERS_DIR, 'printers',  `${spec.printer}.yaml`));
@@ -166,37 +160,42 @@ function run(): void {
       continue;
     }
 
-    // Serialise to the appropriate format.
+    // Build canonical JSON profile — source of truth for serializers.
+    const canonical = buildCanonicalProfile(
+      spec.printer,
+      spec.material,
+      spec.nozzle,
+      spec.goal,
+      resolved,
+    );
+    const canonicalSlug = canonical.metadata.slug;
+
+    const jsonPath = join(PROFILES_DIR, `${canonicalSlug}.json`);
+    writeFileSync(jsonPath, serializeCanonicalProfileToJson(canonical), 'utf-8');
+
+    // Serialise to the appropriate slicer format.
     const slicerFormat = slicerFormatForPrinter(spec.printer);
-    const combination: Combination = {
-      printer: spec.printer,
-      material: spec.material,
-      nozzle: spec.nozzle,
-      goal: spec.goal,
-      isAvailable: true,
-      slug,
-    };
 
     let downloadPath: string;
     if (slicerFormat === 'prusaslicer') {
-      const ini = serializePrusaSlicer(resolved, combination);
-      const outPath = join(PRUSASLICER_DIR, `${slug}.ini`);
+      const ini = serializePrusaSlicer(canonical);
+      const outPath = join(PRUSASLICER_DIR, `${canonicalSlug}.ini`);
       writeFileSync(outPath, ini, 'utf-8');
-      downloadPath = `/profiles/prusaslicer/${slug}.ini`;
+      downloadPath = `/profiles/prusaslicer/${canonicalSlug}.ini`;
     } else {
-      const buf = serializeBambuOrca(resolved, combination);
-      const outPath = join(BAMBU_ORCA_DIR, `${slug}.3mf`);
+      const buf = serializeBambuOrca(canonical);
+      const outPath = join(BAMBU_ORCA_DIR, `${canonicalSlug}.3mf`);
       writeFileSync(outPath, buf);
-      downloadPath = `/profiles/bambu-orca/${slug}.3mf`;
+      downloadPath = `/profiles/bambu-orca/${canonicalSlug}.3mf`;
     }
 
-    const highlights = HIGHLIGHTS[slug];
+    const highlights = HIGHLIGHTS[canonicalSlug];
     if (!highlights) {
-      throw new Error(`Missing authored highlights for launch combination: ${slug}`);
+      throw new Error(`Missing authored highlights for launch combination: ${canonicalSlug}`);
     }
 
     manifest.push({
-      slug,
+      slug: canonicalSlug,
       printer: spec.printer,
       material: spec.material,
       nozzle: spec.nozzle,
@@ -207,7 +206,7 @@ function run(): void {
       highlights,
     });
 
-    console.log(`  OK   ${slug} (${slicerFormat})`);
+    console.log(`  OK   ${canonicalSlug} (${slicerFormat})`);
     built++;
   }
 

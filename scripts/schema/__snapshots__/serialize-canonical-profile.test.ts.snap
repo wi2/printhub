@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`serializeCanonicalProfileToJson > matches snapshot for a representative profile 1`] = `
+"{
+  "metadata": {
+    "schemaVersion": "1.0",
+    "slug": "prusa-mk4-pla-04mm-balanced",
+    "combination": {
+      "printer": "prusa-mk4",
+      "material": "pla",
+      "nozzle": "0.4",
+      "goal": "balanced"
+    }
+  },
+  "parameters": {
+    "bedTemp": 55,
+    "layerHeight": 0.2,
+    "nozzleTemp": 215,
+    "printSpeed": 150
+  }
+}
+"
+`;

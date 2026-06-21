@@ -31,7 +31,10 @@
 
 import { zipSync, strToU8 } from 'fflate';
 import type { ResolvedParams } from '../engine/types';
+import type { CanonicalProfile } from '../schema/canonical-profile';
+import { toCombination } from '../schema/to-combination';
 import type { Combination } from '../../src/types';
+import { getFilamentDensity } from '../material-properties';
 
 /** Maps an internal infill pattern name to an OrcaSlicer sparse_infill_pattern value. */
 function mapInfillPattern(pattern: string): string {
@@ -125,7 +128,7 @@ function buildFilamentProfile(
     retraction_length: [String(params['retractLength'])],
     retraction_speed: [String(params['retractSpeed'])],
     deretraction_speed: [String(params['deretractSpeed'])],
-    filament_density: ['1.24'],
+    filament_density: [String(getFilamentDensity(combination.material))],
     filament_cost: ['0'],
     reduce_fan_stop_start_freq: ['1'],
   };
@@ -177,14 +180,15 @@ const RELS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </Relationships>`;
 
 /**
- * Serializes a resolved parameter map into a Bambu Studio / Orca Slicer
- * `.3mf` config bundle archive.
+ * Serializes a canonical profile into a Bambu Studio / Orca Slicer `.3mf` archive.
  *
  * The archive is a ZIP containing three JSON profile files plus the required
  * Open Packaging Convention metadata files. Returns a Buffer — the build
  * script writes it directly to disk.
  */
-export function serialize(params: ResolvedParams, combination: Combination): Buffer {
+export function serialize(profile: CanonicalProfile): Buffer {
+  const params = profile.parameters;
+  const combination = toCombination(profile);
   const processProfile = buildProcessProfile(params, combination);
   const filamentProfile = buildFilamentProfile(params, combination);
   const machineProfile = buildMachineProfile(params, combination);

@@ -237,13 +237,19 @@ scripts/
 │   ├── validate.ts          # Safety guardrail validation pass
 │   └── validate.test.ts     # Unit tests — colocated
 │
+├── schema/                  # Canonical JSON profile model (M6, ADR-004)
+│   ├── canonical-profile.ts       # CanonicalProfile types
+│   ├── build-canonical-profile.ts # ResolvedParams → CanonicalProfile
+│   ├── serialize-canonical-profile.ts
+│   └── *.test.ts                  # Unit tests — colocated
+│
 ├── serializers/
-│   ├── prusaslicer.ts       # Internal params → PrusaSlicer .ini config bundle
+│   ├── prusaslicer.ts       # CanonicalProfile → PrusaSlicer .ini config bundle
 │   ├── prusaslicer.test.ts  # Unit tests — colocated
-│   ├── bambu-orca.ts        # Internal params → Bambu/Orca .3mf project template
+│   ├── bambu-orca.ts        # CanonicalProfile → Bambu/Orca .3mf project template
 │   └── bambu-orca.test.ts   # Unit tests — colocated
 │
-└── build.ts                 # Orchestrator: resolve → validate → serialize → manifest
+└── build.ts                 # Orchestrator: resolve → validate → canonical JSON → serialize → manifest
 ```
 
 Unit tests for the engine are colocated with their source files, not mirrored in a separate `tests/unit/` directory tree. This is the right call because:
@@ -263,13 +269,16 @@ Guardrail validation pass. Accepts a resolved parameter map and the bounds from 
 This is the build gate for safety-critical parameters. It is a separate file specifically so it can be tested in isolation without running the full build pipeline. A monolithic `build.ts` would prevent that. The cost is one extra file; the benefit is independently testable safety logic.
 
 **`scripts/build.ts`**
-Orchestrator. Iterates over all combinations, calls `resolve.ts`, passes the result to `validate.ts`, and for passing combinations calls both serializers. Writes outputs to `generated/`. Records failures and reports them at the end. The build fails if any combination fails validation.
+Orchestrator. Iterates over all combinations, calls `resolve.ts`, passes the result to `validate.ts`, builds a `CanonicalProfile`, writes JSON artifacts, and for passing combinations calls the appropriate serializer. Writes outputs to `generated/`. Records failures and reports them at the end. The build fails if any combination fails validation.
+
+**`scripts/schema/`**
+Canonical JSON profile model (M6). Defines the typed intermediate representation between resolver output and serializers. See [canonical-profile-model.md](./canonical-profile-model.md).
 
 **`scripts/serializers/prusaslicer.ts`**
-Maps the internal parameter representation to PrusaSlicer `.ini` format. Knows nothing about any other slicer.
+Maps a `CanonicalProfile` to PrusaSlicer `.ini` format. Knows nothing about any other slicer.
 
 **`scripts/serializers/bambu-orca.ts`**
-Maps the internal parameter representation to Bambu/Orca `.3mf` format. Knows nothing about any other slicer.
+Maps a `CanonicalProfile` to Bambu/Orca `.3mf` format. Knows nothing about any other slicer.
 
 **The serialization boundary is strictly enforced.** No slicer-specific key name or format detail appears outside these two files. When Bambu Studio updates its schema, only `bambu-orca.ts` changes.
 
@@ -281,12 +290,13 @@ Maps the internal parameter representation to Bambu/Orca `.3mf` format. Knows no
 generated/                        ← gitignored in its entirety
 │
 ├── profiles/
+│   ├── [slug].json          # Canonical JSON profile (slicer-agnostic, M6)
 │   ├── prusaslicer/
 │   │   ├── bambu-a1-mini-pla-04mm-balanced.ini
-│   │   └── ...  (30 .ini files at MVP)
+│   │   └── ...  (20 .ini files at launch)
 │   └── bambu-orca/
 │       ├── bambu-a1-mini-pla-04mm-balanced.3mf
-│       └── ...  (30 .3mf files at MVP)
+│       └── ...  (20 .3mf files at launch)
 │
 └── combinations.json             # Flat — no manifests/ subdirectory
 ```
@@ -301,6 +311,7 @@ generated/                        ← gitignored in its entirety
 | `layers/guardrails.yaml` | Authored — deliberate review required | Domain experts |
 | Profile `.ini` files | Generated | `scripts/serializers/prusaslicer.ts` |
 | Profile `.3mf` files | Generated | `scripts/serializers/bambu-orca.ts` |
+| Profile `.json` files | Generated | `scripts/schema/serialize-canonical-profile.ts` |
 | `generated/combinations.json` | Generated | `scripts/build.ts` |
 | Pre-rendered HTML | Generated | Vite SSG build |
 

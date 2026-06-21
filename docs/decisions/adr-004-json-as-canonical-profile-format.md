@@ -76,6 +76,12 @@ This decision is scoped to profile parameter data. The following are explicitly 
 - **Exporters must stay aligned.** Any field added to or removed from the canonical JSON schema must be reflected in every serializer that references it. A schema change that goes undetected in one serializer produces a silently incorrect slicer file.
 - **Existing serializers may require refactoring.** Current serializers receive a raw resolver output map. Migrating them to accept a typed canonical JSON input is a V2 engineering task.
 
+**M6 operational notes (post-hardening):**
+
+- Slug construction is single-sourced in `src/lib/slug.ts` — the build script, canonical profile builder, and frontend all import this utility.
+- Material-specific serializer values (e.g. filament density) live in `scripts/material-properties.ts`, not in individual serializers.
+- Parameters such as `motionSystem` are stored in resolved profiles but are not consumed by serializers at launch scope.
+
 ---
 
 ## Roadmap Impact

@@ -56,7 +56,7 @@ material, goal, or nozzle.
 | Key | Type | Primary layer | Description |
 |---|---|---|---|
 | `firmwareFlavor` | string | printer | GCode dialect used by this printer's firmware. Values: `"marlin"`, `"klipper"`, `"bambu"`. Controls gcode syntax in PrusaSlicer profiles. Not emitted in Bambu/Orca profiles (the machine profile already encodes this). |
-| `motionSystem` | string | printer | Kinematic architecture. Values: `"cartesian"`, `"corexy"`, `"corexz"`. Used by serializers to select appropriate acceleration/jerk mappings. |
+| `motionSystem` | string | printer | Kinematic architecture. Values: `"cartesian"`, `"corexy"`, `"corexz"`. Authored on the printer layer and included in resolved profiles. **At M6, serializers do not branch on this value** — acceleration and speed limits come directly from resolved parameters (`maxAcceleration`, `maxSpeed`, etc.). Reserved for future serializer-specific jerk/acceleration mappings when launch profiles require kinematic branching. |
 | `bedSizeX` | number | printer | Usable bed dimension along X axis in mm. |
 | `bedSizeY` | number | printer | Usable bed dimension along Y axis in mm. |
 | `maxPrintHeight` | number | printer | Maximum usable Z height in mm. |

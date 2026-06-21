@@ -16,13 +16,16 @@
 layers/*.yaml
     → scripts/engine/resolve.ts    (pure merge: global → printer → material → goal → nozzle → override)
     → scripts/engine/validate.ts   (guardrail check on 4 parameters)
-    → scripts/serializers/         (format-specific translation)
+    → buildCanonicalProfile()      (ResolvedParams → CanonicalProfile)   ← M6
+    → scripts/serializers/         (format-specific translation from CanonicalProfile)
           prusaslicer.ts  → .ini
           bambu-orca.ts   → .3mf
-    → generated/profiles/          (static profile files)
+    → generated/profiles/          (JSON + static profile files)
     → generated/combinations.json  (manifest: slug, metadata, downloadPath, highlights)
     → public/                      (copied from generated/ for Vite and CDN)
 ```
+
+> **M6 update:** The canonical JSON intermediate step is implemented. See [canonical-profile-model.md](./canonical-profile-model.md).
 
 ### Runtime
 
@@ -42,17 +45,30 @@ Feedback API (Node.js, server/index.ts)
 
 - Profiles are **pre-generated build artifacts** — never computed at runtime
 - No database; all storage is file-based
-- No intermediate structured representation between the resolver output and the serializers
+- Canonical JSON profiles are written at build time (M6); not yet consumed at runtime
 - Feedback is **write-only** at MVP — no read path, no analytics query surface
 - All state lives in the URL (the combination slug) or in local component state
 
 ---
 
-## 2. The ADR-004 Transition — Inserting Canonical JSON
+## 2. The ADR-004 Transition — Canonical JSON (M6 Complete)
 
-ADR-004 establishes that a canonical JSON document must exist between the resolver output and the serializers. This is the **first structural change** in the roadmap and a prerequisite for all V2+ work.
+ADR-004 establishes that a canonical JSON document must exist between the resolver output and the serializers. **M6 implements this transition.** V2 adds persistence and versioning on top of the same document shape.
 
-### V2 Build Pipeline
+### Current Build Pipeline (post-M6)
+
+```
+layers/*.yaml
+    → scripts/engine/resolve.ts
+    → buildCanonicalProfile()          ← implemented (M6)
+    →   scripts/serializers/prusaslicer.ts  → .ini
+    →   scripts/serializers/bambu-orca.ts   → .3mf
+    → generated/profiles/[slug].json   ← build artifact (not yet served to users)
+    → generated/profiles/ + generated/combinations.json
+    → public/
+```
+
+### V2 Build Pipeline (planned)
 
 ```
 layers/*.yaml
@@ -65,18 +81,21 @@ layers/*.yaml
     → public/
 ```
 
-### Canonical JSON Profile — Illustrative Shape
+### Canonical JSON Profile — Current Shape (M6)
+
+See [canonical-profile-model.md](./canonical-profile-model.md) for the authoritative M6 schema. Illustrative example:
 
 ```json
 {
-  "schemaVersion": "1.0",
-  "slug": "bambu-a1-mini-pla-04mm-balanced",
-  "generatedAt": "2026-06-21T00:00:00.000Z",
-  "combination": {
-    "printer": "bambu-a1-mini",
-    "material": "pla",
-    "nozzle": "0.4mm",
-    "goal": "balanced"
+  "metadata": {
+    "schemaVersion": "1.0",
+    "slug": "bambu-a1-mini-pla-04mm-balanced",
+    "combination": {
+      "printer": "bambu-a1-mini",
+      "material": "pla",
+      "nozzle": "0.4",
+      "goal": "balanced"
+    }
   },
   "parameters": {
     "nozzleTemp": 220,
@@ -84,28 +103,20 @@ layers/*.yaml
     "printSpeed": 250,
     "firstLayerSpeed": 50,
     "layerHeight": 0.2
-  },
-  "validationStatus": "THEORETICALLY_VALID",
-  "layerSources": {
-    "nozzleTemp": "material",
-    "printSpeed": "printer",
-    "layerHeight": "goal"
   }
 }
 ```
 
-The `layerSources` map records which layer contributed each parameter. This is included from V2 to enable V4 parameter impact analysis: when a printer layer change affects `printSpeed`, that attribution is preserved in the `ProfileVersion` record.
+Fields such as `layerSources`, `validationStatus`, and `generatedAt` are planned for V2+ but intentionally omitted at M6.
 
-The `schemaVersion` field is required from day one. When the canonical schema evolves, the version field enables explicit, auditable migrations (ARCH-2).
+### What the Serializers Receive
 
-### What the Serializers Receive (Before and After)
-
-| | V1 (current) | V2 (target) |
-|---|---|---|
-| **Input type** | Untyped `Record<string, unknown>` from resolver | Typed canonical JSON document (`CanonicalProfile`) |
-| **Source of truth** | Implicit in the merge stack | Explicit JSON record with `schemaVersion` |
-| **Testable?** | Indirectly via build output snapshots | Directly via ARCH-4 conformance tests |
-| **Versionable?** | No | Yes — each build produces a versioned record |
+| | Pre-M6 (V1) | Post-M6 (current) | V2 (planned) |
+|---|---|---|---|
+| **Input type** | Untyped `ResolvedParams` from resolver | Typed `CanonicalProfile` | Same + version metadata in store |
+| **Source of truth** | Implicit in the merge stack | Explicit JSON record with `schemaVersion` | Versioned `ProfileVersion` records |
+| **Testable?** | Indirectly via build output snapshots | Directly via canonical profile tests + serializer snapshots | ARCH-3 round-trip tests |
+| **Versionable?** | No | Schema version field only | Full version history per combination |
 
 ---
 

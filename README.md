@@ -141,9 +141,12 @@ npm run build
 1. Load layer files
 2. Resolve parameters
 3. Validate guardrails
-4. Serialize profile
-5. Generate manifest
-6. Build application
+4. Build canonical JSON profile
+5. Serialize profile (`.ini` / `.3mf`)
+6. Generate manifest
+7. Build application
+
+Canonical JSON profiles are written to `generated/profiles/[slug].json` at build time. They are not served to users at M6 — see [canonical-profile-model.md](docs/architecture/canonical-profile-model.md).
 
 ---
 
@@ -155,6 +158,7 @@ npm run build
 | [Combination validation runbook](docs/delivery/combination-validation-runbook.md) | Physical test procedure before launch |
 | [Deployment runbook](docs/delivery/deployment-runbook.md) | Production deploy steps |
 | [Architecture overview](docs/delivery/architecture-overview.md) | System design and known MVP limitations |
+| [Canonical profile model](docs/architecture/canonical-profile-model.md) | Canonical JSON schema and build pipeline (M6) |
 | [Local dev setup](docs/delivery/local-dev-setup.md) | Environment and common issues |
 
 ---
@@ -170,6 +174,8 @@ M3 — Frontend ✅
 M4 — Runtime API ✅
 
 M5 — Launch Gate ⏳
+
+M6 — Canonical JSON Foundation ✅
 
 **Physical validation:** Deferred per [ADR-003](docs/decisions/adr-003-deferred-physical-validation.md). All 20 launch combinations are `THEORETICALLY_VALID` (engineering validation only). Real-hardware test prints (PV-1, PV-2) must complete before launch sign-off.
 

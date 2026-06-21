@@ -8,8 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { serialize } from './bambu-orca';
+import { buildCanonicalProfile } from '../schema/build-canonical-profile';
 import type { ResolvedParams } from '../engine/types';
-import type { Combination } from '../../src/types';
 
 /** A representative resolved parameter map for Bambu A1 Mini + PLA + 0.4mm + Balanced. */
 const FIXTURE_PARAMS: ResolvedParams = {
@@ -54,14 +54,13 @@ const FIXTURE_PARAMS: ResolvedParams = {
   maxVolumetricSpeed: 8.0,
 };
 
-const FIXTURE_COMBINATION: Combination = {
-  printer: 'bambu-a1-mini',
-  material: 'pla',
-  nozzle: '0.4',
-  goal: 'balanced',
-  isAvailable: true,
-  slug: 'bambu-a1-mini-pla-04mm-balanced',
-};
+const FIXTURE_PROFILE = buildCanonicalProfile(
+  'bambu-a1-mini',
+  'pla',
+  '0.4',
+  'balanced',
+  FIXTURE_PARAMS,
+);
 
 /** Helper: extracts and parses a named JSON file from the .3mf ZIP buffer. */
 async function extractJson(buf: Buffer, filename: string): Promise<unknown> {
@@ -74,59 +73,78 @@ async function extractJson(buf: Buffer, filename: string): Promise<unknown> {
 
 describe('bambu-orca serializer', () => {
   it('returns a Buffer', () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     expect(Buffer.isBuffer(result)).toBe(true);
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('archive contains [Content_Types].xml', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const { unzipSync } = await import('fflate');
     const unzipped = unzipSync(new Uint8Array(result));
     expect('[Content_Types].xml' in unzipped).toBe(true);
   });
 
   it('archive contains Metadata/process.json', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const { unzipSync } = await import('fflate');
     const unzipped = unzipSync(new Uint8Array(result));
     expect('Metadata/process.json' in unzipped).toBe(true);
   });
 
   it('archive contains Metadata/filament.json', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const { unzipSync } = await import('fflate');
     const unzipped = unzipSync(new Uint8Array(result));
     expect('Metadata/filament.json' in unzipped).toBe(true);
   });
 
   it('process profile has correct layer_height', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const process = await extractJson(result, 'process.json') as Record<string, unknown>;
     expect(process['layer_height']).toBe('0.2');
   });
 
   it('filament profile has correct nozzle_temperature', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const filament = await extractJson(result, 'filament.json') as Record<string, unknown>;
     expect(filament['nozzle_temperature']).toEqual(['215']);
   });
 
   it('filament profile has correct filament_type', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const filament = await extractJson(result, 'filament.json') as Record<string, unknown>;
     expect(filament['filament_type']).toEqual(['PLA']);
   });
 
+  it('filament profile uses PLA density for PLA combinations', async () => {
+    const result = serialize(FIXTURE_PROFILE);
+    const filament = await extractJson(result, 'filament.json') as Record<string, unknown>;
+    expect(filament['filament_density']).toEqual(['1.24']);
+  });
+
+  it('filament profile uses PETG density for PETG combinations', async () => {
+    const petgProfile = buildCanonicalProfile(
+      'bambu-a1-mini',
+      'petg',
+      '0.4',
+      'balanced',
+      FIXTURE_PARAMS,
+    );
+    const result = serialize(petgProfile);
+    const filament = await extractJson(result, 'filament.json') as Record<string, unknown>;
+    expect(filament['filament_density']).toEqual(['1.27']);
+  });
+
   it('machine profile has correct printable_area for A1 Mini (180x180)', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const machine = await extractJson(result, 'machine.json') as Record<string, unknown>;
     expect(machine['printable_area']).toEqual(['0x0', '180x0', '180x180', '0x180']);
   });
 
   it('output is deterministic', () => {
-    const result1 = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
-    const result2 = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result1 = serialize(FIXTURE_PROFILE);
+    const result2 = serialize(FIXTURE_PROFILE);
     expect(result1.equals(result2)).toBe(true);
   });
 
@@ -135,13 +153,13 @@ describe('bambu-orca serializer', () => {
    * Per S-2.8 AC: reviewed before approving this snapshot.
    */
   it('process.json matches snapshot (manually review before approving)', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const process = await extractJson(result, 'process.json');
     expect(process).toMatchSnapshot();
   });
 
   it('filament.json matches snapshot (manually review before approving)', async () => {
-    const result = serialize(FIXTURE_PARAMS, FIXTURE_COMBINATION);
+    const result = serialize(FIXTURE_PROFILE);
     const filament = await extractJson(result, 'filament.json');
     expect(filament).toMatchSnapshot();
   });

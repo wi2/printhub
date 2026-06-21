@@ -2,7 +2,23 @@
 
 Items identified during delivery but explicitly deferred. Do not implement from this list without a scoped story.
 
-**Last updated:** Product Polish pass (June 2026)
+**Last updated:** M6 — Canonical JSON Foundation (June 2026)
+
+---
+
+## M6 — Canonical JSON Foundation
+
+Internal architecture milestone implementing [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md). No user-facing changes.
+
+| ID | Goal | Rationale | Dependencies | Acceptance criteria |
+|---|---|---|---|---|
+| S-6.1 | Define canonical profile types | ARCH-1 requires an explicit, typed schema. Types must reuse `ResolvedParams` without duplicating the 34-parameter namespace. | ADR-004 | `CanonicalProfile`, `CanonicalProfileMetadata`, and `CanonicalProfileParameters` defined in `scripts/schema/canonical-profile.ts`. No future-only fields. |
+| S-6.2 | Implement `buildCanonicalProfile()` | Pure function converts resolver output to typed canonical profile. Must be unit-testable without filesystem access. | S-6.1 | Function accepts printer, material, nozzle, goal, and `ResolvedParams`; returns `CanonicalProfile` with correct slug and schema version. |
+| S-6.3 | Write JSON build artifacts | Canonical JSON becomes a first-class build output alongside `.ini` and `.3mf`. | S-6.2 | Every built combination produces `generated/profiles/[slug].json`. Build remains deterministic. Manifest schema unchanged. |
+| S-6.4 | Refactor serializers to consume `CanonicalProfile` | Serializers become output adapters reading the canonical model, not raw resolver output. | S-6.1, S-6.2 | Both serializers accept `CanonicalProfile`. Existing snapshot tests pass without output changes. |
+| S-6.5 | Add canonical profile test coverage | Builder, JSON serialization, and serializer compatibility must be tested. No regressions in existing suite. | S-6.2, S-6.3, S-6.4 | Unit tests for builder and JSON serializer. Serializer compatibility tests. All 253+ existing tests pass. |
+
+**Documentation:** [canonical-profile-model.md](../architecture/canonical-profile-model.md)
 
 ---
 
@@ -50,27 +66,27 @@ Items identified during delivery but explicitly deferred. Do not implement from 
 
 ## Architecture
 
-Items required to operationalise [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md). None block launch. All are pre-conditions for V2 work.
+Items required to operationalise [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md). M6 (S-6.1–S-6.5) addressed ARCH-1 and partially addressed ARCH-4. Remaining items are pre-conditions for V2 work beyond M6.
 
-| ID | Item | Rationale for deferral |
-|---|---|---|
-| ARCH-1 | Shared canonical JSON profile schema | Required before V2 dynamic generation can be designed. Schema is implicit at MVP; must be made explicit and versioned. |
-| ARCH-2 | JSON profile versioning strategy | Needed before feedback (V3) can correlate outcomes to specific parameter snapshots. `schemaVersion` field and migration path must be agreed before V2 ships. |
-| ARCH-3 | Import/export compatibility test suite | Round-trip fidelity (canonical JSON → slicer format → re-parsed values) must be verified before dynamic generation serves real users. |
-| ARCH-4 | Serializer conformance tests | Each serializer must have tests asserting canonical JSON input produces the correct slicer-native output. Currently tested indirectly via build output snapshots. |
-| ARCH-5 | Additional slicer support evaluation | SuperSlicer, ideaMaker, and Cura are candidates. Evaluation is gated on ARCH-1 (a stable canonical schema is a prerequisite for assessing serializer effort). |
+| ID | Item | Status | Rationale for deferral |
+|---|---|---|---|
+| ARCH-1 | Shared canonical JSON profile schema | **Done (M6)** | Implemented in `scripts/schema/canonical-profile.ts`. See [canonical-profile-model.md](../architecture/canonical-profile-model.md). |
+| ARCH-2 | JSON profile versioning strategy | Open | Needed before feedback (V3) can correlate outcomes to specific parameter snapshots. `schemaVersion` field exists; migration path and version identifiers still required. |
+| ARCH-3 | Import/export compatibility test suite | Open | Round-trip fidelity (canonical JSON → slicer format → re-parsed values) must be verified before dynamic generation serves real users. |
+| ARCH-4 | Serializer conformance tests | **Partial (M6)** | Serializers consume typed `CanonicalProfile`; existing snapshots pass. Dedicated ARCH-4 conformance suite still deferred. |
+| ARCH-5 | Additional slicer support evaluation | Open | SuperSlicer, ideaMaker, and Cura are candidates. Evaluation is gated on ARCH-1 (now complete). |
 
 ---
 
 ## V2 Stories — Learning Profiles
 
-Introduces canonical JSON, profile versioning, and feedback-to-version linkage. Depends on ARCH-1 through ARCH-4 being resolved first.
+Introduces profile versioning and feedback-to-version linkage. Canonical JSON types and serializer refactor are complete (M6). Depends on ARCH-2 through ARCH-4 being resolved for remaining V2 work.
 
 | ID | Goal | Rationale | Dependencies | Estimate |
 |---|---|---|---|---|
-| V2-1 | Define and publish the canonical JSON profile schema | ARCH-1 backlog item. The schema is currently implicit in the resolver output. Making it explicit and typed is the prerequisite for all V2+ work. | ARCH-1 | M |
-| V2-2 | Design and implement JSON profile versioning strategy | ARCH-2 backlog item. Agree on `schemaVersion` field, version identifier format, and schema migration approach before any versioned records are written. | V2-1 | M |
-| V2-3 | Refactor serializers to consume typed canonical JSON input | Current serializers receive an untyped `Record<string, unknown>`. This story types the input as the canonical `CanonicalProfile` type defined in V2-1. | V2-1, ARCH-4 | M |
+| V2-1 | ~~Define and publish the canonical JSON profile schema~~ | **Done in M6 (S-6.1).** See `scripts/schema/canonical-profile.ts`. | — | — |
+| V2-2 | Design and implement JSON profile versioning strategy | ARCH-2 backlog item. Agree on version identifier format and schema migration approach before any versioned records are written. | M6 | M |
+| V2-3 | ~~Refactor serializers to consume typed canonical JSON input~~ | **Done in M6 (S-6.4).** Serializers accept `CanonicalProfile`. | — | — |
 | V2-4 | Build import/export round-trip compatibility test suite | ARCH-3 backlog item. Verifies that canonical JSON → slicer-native format produces a file that imports without error and produces equivalent parameters. | V2-3 | M |
 | V2-5 | Upgrade feedback store from append-only JSON to SQLite | `data/feedback.json` cannot support the aggregate queries required by V3. Migrate to a SQLite database using the same `Feedback` schema defined in `future-data-model.md`. | None | M |
 | V2-6 | Create `ProfileVersion` records in the build pipeline | For each combination build, persist a `ProfileVersion` record to the SQLite store alongside the static profile files. The canonical JSON document is the record. | V2-2, V2-5 | M |
