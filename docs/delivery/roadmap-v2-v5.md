@@ -44,11 +44,12 @@ Give every profile a stable identity and a history. Link user feedback to the ex
 
 ### Objectives
 
-1. **Canonical JSON as the intermediate format** — every resolved profile exists as a typed, versioned JSON document before serialization (ARCH-1, ARCH-2 from backlog; required by ADR-004)
-2. **Profile versioning** — each time a combination's parameters change, a new `ProfileVersion` is created; old versions are preserved and queryable
-3. **Feedback linkage** — every feedback submission references the `ProfileVersion` that was active when the profile was downloaded
-4. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request
-5. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side
+1. **Canonical JSON as the intermediate format** — every resolved profile exists as a typed, versioned JSON document before serialization (ARCH-1, ARCH-2 from backlog; required by ADR-004) — **implemented at M6**
+2. **Profile version identity** — each canonical JSON profile carries a `metadata.version` field (integer, starts at 1); deterministic, no timestamps — **implemented (V2 Sprint 1)**
+3. **Profile versioning** — each time a combination's parameters change, a new `ProfileVersion` is created; old versions are preserved and queryable — **not yet implemented**
+4. **Feedback linkage** — every feedback submission references the `ProfileVersion` that was active when the profile was downloaded — **not yet implemented**
+5. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
+6. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
 
 ### Architecture Changes Required
 
@@ -90,7 +91,8 @@ Layered YAML
 
 ### Success Metrics
 
-- 100% of V2+ profiles have a canonical JSON record with a `schemaVersion` field
+- 100% of V2+ profiles have a canonical JSON record with a `schemaVersion` field — **met at M6**
+- 100% of V2+ profiles have a `metadata.version` field — **met at V2 Sprint 1**
 - 100% of post-V2 feedback submissions are linked to a `ProfileVersion`
 - Profile authors can view a parameter diff between any two versions of a combination
 - Zero serializer regressions in the ARCH-4 conformance suite

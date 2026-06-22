@@ -12,6 +12,7 @@ import {
   type CanonicalProfile,
   type CanonicalProfileCombination,
 } from './canonical-profile.js';
+import { currentVersion } from './profile-version.js';
 
 /**
  * Constructs a typed canonical profile from combination inputs and resolved params.
@@ -35,6 +36,7 @@ export function buildCanonicalProfile(
   return {
     metadata: {
       schemaVersion: CANONICAL_PROFILE_SCHEMA_VERSION,
+      version: currentVersion(),
       slug,
       combination,
     },

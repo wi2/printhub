@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildCanonicalProfile } from './build-canonical-profile';
 import { CANONICAL_PROFILE_SCHEMA_VERSION } from './canonical-profile';
+import { INITIAL_PROFILE_VERSION } from './profile-version';
 import type { ResolvedParams } from '../engine/types';
 
 const FIXTURE_PARAMS: ResolvedParams = {
@@ -49,6 +50,11 @@ describe('buildCanonicalProfile', () => {
   it('sets schemaVersion to the current canonical schema version', () => {
     const profile = buildCanonicalProfile('prusa-mk4', 'pla', '0.4', 'balanced', FIXTURE_PARAMS);
     expect(profile.metadata.schemaVersion).toBe(CANONICAL_PROFILE_SCHEMA_VERSION);
+  });
+
+  it('sets version to the current profile version', () => {
+    const profile = buildCanonicalProfile('prusa-mk4', 'pla', '0.4', 'balanced', FIXTURE_PARAMS);
+    expect(profile.metadata.version).toBe(INITIAL_PROFILE_VERSION);
   });
 
   it('constructs the slug from combination inputs', () => {

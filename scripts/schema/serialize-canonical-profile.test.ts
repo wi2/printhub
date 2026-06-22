@@ -24,14 +24,15 @@ describe('serializeCanonicalProfileToJson', () => {
     expect(parsed.parameters).toBeDefined();
   });
 
-  it('includes schemaVersion and slug in metadata', () => {
+  it('includes schemaVersion, version, and slug in metadata', () => {
     const profile = buildCanonicalProfile('prusa-mk4', 'pla', '0.4', 'balanced', FIXTURE_PARAMS);
     const json = serializeCanonicalProfileToJson(profile);
     const parsed = JSON.parse(json) as {
-      metadata: { schemaVersion: string; slug: string };
+      metadata: { schemaVersion: string; version: number; slug: string };
     };
 
     expect(parsed.metadata.schemaVersion).toBe('1.0');
+    expect(parsed.metadata.version).toBe(1);
     expect(parsed.metadata.slug).toBe('prusa-mk4-pla-04mm-balanced');
   });
 

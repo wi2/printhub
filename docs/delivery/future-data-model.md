@@ -6,6 +6,8 @@
 
 > This document describes future entities and their relationships. It is planning documentation only. No database schema, ORM, migration, or TypeScript changes are implemented here. All of those are V2 engineering deliverables, gated on ARCH-1 completion.
 
+**V2 Sprint 1 update:** Canonical JSON profiles now include `metadata.version` (integer, initial value `1`). This is the profile version identity field that future `Feedback` records will reference. Version history, SQLite persistence, and queryable `ProfileVersion` records are not yet implemented.
+
 ---
 
 ## Overview
@@ -82,11 +84,13 @@ Represents the aggregate entity for a specific printer / material / nozzle / goa
 
 Represents a specific set of resolved parameters for a Profile at a point in time. This is the unit of feedback linkage, parameter comparison, optimization, and learning.
 
+**V2 Sprint 1 foundation:** The canonical JSON `metadata.version` field is the in-artifact representation of `versionNumber`. At build time, all profiles are version `1`. When version history is implemented, each parameter change will increment `metadata.version` and a corresponding `ProfileVersion` record will be persisted.
+
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `string` | Unique version identifier (e.g. `bambu-a1-mini-pla-04mm-balanced-v3`) |
 | `profileId` | `Profile.id` | Parent profile |
-| `versionNumber` | `number` | Monotonically increasing per profile; starts at 1 |
+| `versionNumber` | `number` | Monotonically increasing per profile; starts at 1. **Maps to `metadata.version` in canonical JSON.** |
 | `schemaVersion` | `string` | Canonical JSON schema version (e.g. `"1.0"`) |
 | `parameters` | `object` | Full 34-parameter resolved set from `parameter-schema.md` |
 | `layerSources` | `object` | Maps each parameter name to the layer that contributed it (`global`, `printer`, `material`, `goal`, `nozzle`, `override`) |
@@ -99,6 +103,8 @@ Represents a specific set of resolved parameters for a Profile at a point in tim
 | `isActive` | `boolean` | Whether this is the currently served version for its Profile |
 
 **V2 introduction.** The canonical JSON document described in ADR-004 maps directly to this entity. The first `ProfileVersion` for each existing combination is created during the V2 migration build.
+
+**Feedback linkage (planned):** Post-V2 `Feedback` records will include `profileVersionId` referencing the `ProfileVersion` that was active at download time. Pre-V2 feedback cannot be retroactively linked. Version history (querying past versions, diffing, archiving) is not implemented at V2 Sprint 1.
 
 **Why `layerSources` matters:** In V4, parameter impact analysis needs to know which layer was responsible for a given parameter value. If `printSpeed` changes between versions and outcomes improve, knowing that the printer layer drove that change (not the goal layer) narrows the investigation.
 

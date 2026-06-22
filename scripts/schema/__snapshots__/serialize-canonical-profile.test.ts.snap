@@ -4,6 +4,7 @@ exports[`serializeCanonicalProfileToJson > matches snapshot for a representative
 "{
   "metadata": {
     "schemaVersion": "1.0",
+    "version": 1,
     "slug": "prusa-mk4-pla-04mm-balanced",
     "combination": {
       "printer": "prusa-mk4",

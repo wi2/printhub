@@ -6,6 +6,8 @@
 
 > This document describes the intended architecture evolution from V1 (MVP) through V5. It is planning documentation only. No code, schema, or database changes are implemented here.
 
+**V2 Sprint 1 update:** Profile version identity is now embedded in canonical JSON (`metadata.version: 1`). Build artifacts at `generated/profiles/[slug].json` include this field. Version history persistence, feedback linkage, and profile comparison remain planned for subsequent V2 stories.
+
 ---
 
 ## 1. Current Architecture (V1 MVP)
@@ -81,7 +83,7 @@ layers/*.yaml
     → public/
 ```
 
-### Canonical JSON Profile — Current Shape (M6)
+### Canonical JSON Profile — Current Shape (M6 + V2 Sprint 1)
 
 See [canonical-profile-model.md](./canonical-profile-model.md) for the authoritative M6 schema. Illustrative example:
 
@@ -89,6 +91,7 @@ See [canonical-profile-model.md](./canonical-profile-model.md) for the authorita
 {
   "metadata": {
     "schemaVersion": "1.0",
+    "version": 1,
     "slug": "bambu-a1-mini-pla-04mm-balanced",
     "combination": {
       "printer": "bambu-a1-mini",
@@ -107,16 +110,18 @@ See [canonical-profile-model.md](./canonical-profile-model.md) for the authorita
 }
 ```
 
-Fields such as `layerSources`, `validationStatus`, and `generatedAt` are planned for V2+ but intentionally omitted at M6.
+`metadata.version` identifies the profile revision for future feedback linkage. All launch profiles start at version `1`. Version history (preserving and querying past versions) is not implemented yet.
+
+Fields such as `layerSources`, `validationStatus`, and `generatedAt` are planned for later V2 stories but intentionally omitted.
 
 ### What the Serializers Receive
 
-| | Pre-M6 (V1) | Post-M6 (current) | V2 (planned) |
-|---|---|---|---|
-| **Input type** | Untyped `ResolvedParams` from resolver | Typed `CanonicalProfile` | Same + version metadata in store |
-| **Source of truth** | Implicit in the merge stack | Explicit JSON record with `schemaVersion` | Versioned `ProfileVersion` records |
-| **Testable?** | Indirectly via build output snapshots | Directly via canonical profile tests + serializer snapshots | ARCH-3 round-trip tests |
-| **Versionable?** | No | Schema version field only | Full version history per combination |
+| | Pre-M6 (V1) | Post-M6 (current) | V2 Sprint 1 | V2 (planned) |
+|---|---|---|---|---|
+| **Input type** | Untyped `ResolvedParams` from resolver | Typed `CanonicalProfile` | Same | Same + version metadata in store |
+| **Source of truth** | Implicit in the merge stack | Explicit JSON record with `schemaVersion` | Same + `metadata.version` field | Versioned `ProfileVersion` records |
+| **Testable?** | Indirectly via build output snapshots | Directly via canonical profile tests + serializer snapshots | Same | ARCH-3 round-trip tests |
+| **Versionable?** | No | Schema version field only | Profile version identity (`metadata.version: 1`) | Full version history per combination |
 
 ---
 

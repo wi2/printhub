@@ -26,9 +26,13 @@ export type CanonicalProfileCombination = {
 /**
  * Profile identity and combination metadata.
  * Does not include build timestamps — deterministic builds omit volatile fields.
+ *
+ * `version` identifies the profile revision for feedback linkage.
+ * Version history persistence is deferred to a later V2 story.
  */
 export type CanonicalProfileMetadata = {
   schemaVersion: typeof CANONICAL_PROFILE_SCHEMA_VERSION;
+  version: number;
   slug: string;
   combination: CanonicalProfileCombination;
 };
