@@ -46,7 +46,7 @@ Build-time profile generation (`scripts/build.ts`) runs **before** the frontend 
 
 | Requirement | Notes |
 |---|---|
-| Node.js 22.x | Enforced via `.nvmrc`; CI uses `node-version-file: .nvmrc` |
+| Node.js **22.23.0** | Pinned in `.nvmrc` (source of truth); CI uses `node-version-file: .nvmrc` |
 | npm 10+ | Bundled with Node 22 |
 | Git checkout | Clean working tree recommended |
 | Persistent disk for API | Feedback store defaults to `data/feedback.json` |
@@ -55,7 +55,7 @@ Build-time profile generation (`scripts/build.ts`) runs **before** the frontend 
 Verify locally before deploying:
 
 ```bash
-nvm use          # reads .nvmrc → 22
+nvm use          # reads .nvmrc → 22.23.0
 npm ci
 npm run build:profiles
 npm run build
@@ -67,17 +67,17 @@ npm run test
 
 ## Node Version
 
-**Required:** Node.js **22.x** (see `.nvmrc`).
+**Required:** Node.js **22.23.0** (see `.nvmrc`).
 
 ```bash
-node --version   # expect v22.x
+node --version   # expect v22.23.0
 ```
 
-Node 16 or 18 will fail on Vite 8 / Vitest 3. Use nvm:
+Node 16, 18, or 24+ will fail on Vite 8 / Vitest 3. Use nvm:
 
 ```bash
-nvm install 22
-nvm use 22
+nvm install      # reads .nvmrc
+nvm use
 ```
 
 ---

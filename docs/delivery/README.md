@@ -5,7 +5,7 @@ This directory contains operational guides written during and after the build ph
 ## What belongs here
 
 - Step-by-step workflows for recurring team tasks (adding a printer, adding a material, validating a combination)
-- Local development setup and environment configuration
+- Local development setup and environment configuration (including [Node version governance](./local-dev-setup.md#version-governance))
 - Deployment procedures and CI/CD pipeline documentation
 - Runbooks for production operations
 

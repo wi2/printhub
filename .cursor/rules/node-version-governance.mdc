@@ -1,0 +1,40 @@
+---
+description: Node.js version governance — single source of truth and upgrade checklist
+alwaysApply: true
+---
+
+# Node.js Version Governance
+
+PrintHub uses one authoritative Node.js version. Contributors, Cursor agents, local development, and CI must all use the same version.
+
+## Source of truth
+
+**`.nvmrc`** is the canonical version. All other references derive from it:
+
+| File | Must match `.nvmrc` |
+|---|---|
+| `package.json` → `engines.node` | Exact semver (e.g. `22.23.0`) |
+| `.github/workflows/ci.yml` | `node-version-file: .nvmrc` — never hardcode a version |
+| `README.md`, `docs/delivery/local-dev-setup.md`, `docs/delivery/deployment-runbook.md` | Document the pinned version |
+
+Do not add a second source of truth (no duplicate `node-version:` in CI, no conflicting docs).
+
+## Local development
+
+```bash
+nvm install    # reads .nvmrc
+nvm use
+node --version # must match .nvmrc
+```
+
+## Upgrading Node.js
+
+Any Node upgrade must update **all** of the following in the same change set:
+
+1. `.nvmrc`
+2. `package.json` → `engines.node`
+3. `.github/workflows/ci.yml` (only if setup changes — version must still come from `.nvmrc`)
+4. Documentation (`README.md`, `docs/delivery/local-dev-setup.md`, `docs/delivery/deployment-runbook.md`)
+5. `@types/node` if the major line changes (stay on the same major as runtime)
+
+After changing versions: run `npm install`, `npm run typecheck`, and `npm run test`.

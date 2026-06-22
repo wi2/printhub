@@ -78,8 +78,10 @@ docs/         Architecture, decisions, and runbooks
 
 ### Requirements
 
-* Node.js 22.x (see `.nvmrc`)
+* Node.js **22.23.0** (see `.nvmrc` — single source of truth)
 * npm 10+
+
+Local development, CI, and Cursor agent work must all use the version in `.nvmrc`. See [Version Governance](docs/delivery/local-dev-setup.md#version-governance) in the local dev guide.
 
 See [local-dev-setup.md](docs/delivery/local-dev-setup.md) for first-time setup.
 
