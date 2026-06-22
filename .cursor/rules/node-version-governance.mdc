@@ -19,6 +19,19 @@ PrintHub uses one authoritative Node.js version. Contributors, Cursor agents, lo
 
 Do not add a second source of truth (no duplicate `node-version:` in CI, no conflicting docs).
 
+## GitHub Actions runtime vs application runtime
+
+CI uses two separate Node contexts:
+
+| Context | Source | Current |
+|---|---|---|
+| **Application Node** (build, test, E2E) | `.nvmrc` via `setup-node` `node-version-file` | Pinned semver (e.g. `22.23.0`) |
+| **Action JavaScript runtime** (checkout, setup-node) | Action major version | Node 24 (`actions/checkout@v7`, `actions/setup-node@v6`) |
+
+Do not conflate them. Upgrading action majors for Node 24 compatibility does **not** change the application Node version.
+
+Minimum action majors are enforced in `tests/ci/workflow.test.ts`. When GitHub deprecates an action runtime, bump action majors and update that test file in the same change set.
+
 ## Local development
 
 ```bash

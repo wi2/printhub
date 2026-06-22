@@ -55,7 +55,7 @@ Build tools:
 
 CI:
 
-* GitHub Actions
+* GitHub Actions (`actions/checkout@v7`, `actions/setup-node@v6`; application Node from `.nvmrc`)
 
 ---
 

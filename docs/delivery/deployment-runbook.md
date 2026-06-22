@@ -46,7 +46,8 @@ Build-time profile generation (`scripts/build.ts`) runs **before** the frontend 
 
 | Requirement | Notes |
 |---|---|
-| Node.js **22.23.0** | Pinned in `.nvmrc` (source of truth); CI uses `node-version-file: .nvmrc` |
+| Node.js **22.23.0** | Pinned in `.nvmrc` (source of truth); CI uses `node-version-file: .nvmrc` via `actions/setup-node@v6` |
+| GitHub Actions | `actions/checkout@v7` and `actions/setup-node@v6` (Node 24 action runtime; application Node still from `.nvmrc`) |
 | npm 10+ | Bundled with Node 22 |
 | Git checkout | Clean working tree recommended |
 | Persistent disk for API | Feedback store defaults to `data/feedback.json` |

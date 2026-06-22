@@ -38,7 +38,8 @@ v22.23.0
 | Context | How the version is enforced |
 |---|---|
 | Local development | `nvm use` reads `.nvmrc` |
-| CI | GitHub Actions `setup-node` uses `node-version-file: .nvmrc` |
+| CI (application Node) | `actions/setup-node@v6` uses `node-version-file: .nvmrc` |
+| CI (action runtime) | `actions/checkout@v7` and `actions/setup-node@v6` run on GitHub's Node 24 JavaScript runtime |
 | npm | `package.json` → `engines.node` matches `.nvmrc` exactly |
 | Cursor agents | Must use the version in `.nvmrc` — see `.cursor/rules/node-version-governance.mdc` |
 
