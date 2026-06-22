@@ -79,6 +79,11 @@ ol {
 /* Layout */
 
 .site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
   border-bottom: 1px solid var(--color-border);
   padding: var(--space-md) 0;
   margin-bottom: var(--space-xl);
@@ -96,6 +101,33 @@ ol {
   color: var(--color-accent-hover);
 }
 
+.site-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-lg);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.site-nav-link {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.site-nav-link:hover {
+  color: var(--color-text);
+}
+
+.site-nav-link--active {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .site-main {
   padding-bottom: var(--space-2xl);
 }
@@ -105,6 +137,66 @@ ol {
   padding: var(--space-lg) 0;
   font-size: 0.875rem;
   color: var(--color-text-subtle);
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-lg);
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-sm);
+}
+
+.footer-links a {
+  color: var(--color-text-subtle);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.footer-tagline {
+  margin: 0;
+}
+
+.breadcrumb {
+  margin-bottom: var(--space-lg);
+}
+
+.breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.breadcrumb-list li:not(:last-child)::after {
+  content: '→';
+  margin-left: var(--space-sm);
+  color: var(--color-text-subtle);
+}
+
+.breadcrumb-list a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.breadcrumb-list a:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.breadcrumb-list [aria-current='page'] {
+  color: var(--color-text);
+  font-weight: 500;
 }
 
 /* Typography helpers */

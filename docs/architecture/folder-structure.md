@@ -148,6 +148,8 @@ One subdirectory per route. Each subdirectory contains the page component (thin 
 **`src/shared/`**
 Design system primitives with no product logic. `SegmentedSelector` does not know it is displaying materials. `SearchableDropdown` does not know it is displaying printers. Domain labels are applied at the feature layer. `PageLayout.tsx` lives here directly — it is one file and does not warrant a subdirectory.
 
+`PageLayout.tsx` owns global navigation (header links, footer quick links) and the page shell. Navigation contains no business logic — only route matching and active-state styling. Pages remain route-owned; profile breadcrumbs live in `ProfilePage.tsx` because they are page-specific context, not global chrome.
+
 At Phase 1, if the shared component count grows, a `src/shared/ui/` subdirectory is the natural extraction. Not before.
 
 **`src/lib/`**

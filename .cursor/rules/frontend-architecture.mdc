@@ -57,6 +57,7 @@ src/
 
 - Feature components live inside their page directory. There is no `features/` directory.
 - `src/shared/` components have zero knowledge of domain entities. `SegmentedSelector` does not know it is displaying materials. Domain labels are applied at the page layer.
+- Global navigation lives in `PageLayout.tsx` (header and footer links). Navigation contains no business logic — route matching and active-state styling only. Pages remain route-owned; page-specific wayfinding (e.g. profile breadcrumbs) lives in the page component.
 - `src/types.ts` imports from nothing in the project. It is the dependency root.
 - `scripts/engine/types.ts` contains engine-internal types only. It never imports from `src/`.
 - There is no `src/hooks/` directory at MVP. Shared hooks are added when a second consumer exists.
@@ -74,6 +75,20 @@ Three routes. Configured in `App.tsx`.
 ```
 
 `App.tsx` is router configuration only (~15 lines at MVP). It does not need to be split into `router.tsx` and `providers.tsx`.
+
+---
+
+## Global Navigation
+
+Persistent header and footer navigation live in `PageLayout.tsx`. All three routes wrap their content in `PageLayout`.
+
+| Location | Links | Active state |
+|---|---|---|
+| Header | Home (`/`), Generate Profile (`/configure`) | Current route highlighted; profile pages highlight Generate Profile as the parent section |
+| Footer | Home, Generate Profile | No active styling |
+| Profile breadcrumb | Home → Generate Profile → Profile | Current page (`Profile`) marked with `aria-current="page"` |
+
+Navigation uses React Router `Link` / `NavLink` primitives. No dropdown menus, no global state, no business logic. Styles are in `src/styles/global.css`.
 
 ---
 

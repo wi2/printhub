@@ -31,6 +31,7 @@ Internal architecture milestone implementing [ADR-004](../decisions/adr-004-json
 | UX-3 | Validation status badge per combination (`THEORETICALLY_VALID` / `PHYSICALLY_VALIDATED`) | Requires manifest schema change and PV-1/PV-2 completion. Static copy on profile page is sufficient until physical validation lands. |
 | UX-4 | Live print success count on profile pages | Deferred per epic Cut 2 — stats API post-launch Week 1. |
 | UX-5 | Printer-specific before-printing tips | Generic guidance is sufficient at MVP; per-printer tips need domain review and manifest or content model. |
+| UX-6 | Dedicated feedback page (`/feedback`) | Current inline feedback flow on profile pages is sufficient for MVP. A dedicated page would explain why feedback matters, show supported combinations, aggregate future validation results, and link to profile-specific submissions. Deferred until navigation depth or feedback volume justifies a separate route. |
 
 ---
 

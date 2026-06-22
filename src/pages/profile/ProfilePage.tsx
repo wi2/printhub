@@ -46,6 +46,18 @@ export function ProfilePage() {
 
   return (
     <PageLayout>
+      <nav aria-label="Breadcrumb" className="breadcrumb">
+        <ol className="breadcrumb-list">
+          <li>
+            <Link to="/">Home</Link>
+          </li>
+          <li>
+            <Link to="/configure">Generate Profile</Link>
+          </li>
+          <li aria-current="page">Profile</li>
+        </ol>
+      </nav>
+
       {state.status === 'loading' && (
         <p role="status">Loading profile, please wait.</p>
       )}

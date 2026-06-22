@@ -143,6 +143,18 @@ describe('ProfilePage', () => {
       ).toBeInTheDocument();
     });
 
+    it('renders a breadcrumb showing Home, Generate Profile, and Profile', async () => {
+      renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
+      await screen.findByRole('heading', { level: 1 });
+
+      const breadcrumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+      expect(breadcrumb).toBeInTheDocument();
+      expect(breadcrumb).toHaveTextContent('Home');
+      expect(breadcrumb).toHaveTextContent('Generate Profile');
+      expect(breadcrumb).toHaveTextContent('Profile');
+      expect(breadcrumb.querySelector('[aria-current="page"]')).toHaveTextContent('Profile');
+    });
+
     it('renders a Share this profile button', async () => {
       renderAtProfileRoute('bambu-a1-mini-pla-04mm-balanced');
       expect(
