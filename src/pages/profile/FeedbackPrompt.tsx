@@ -20,6 +20,7 @@ type FeedbackState =
 type FeedbackPayload = {
   slug: string;
   outcome: FeedbackOutcome;
+  profileVersion: number;
   failureReasons?: string[];
 };
 
@@ -54,13 +55,14 @@ function submitFeedback(payload: FeedbackPayload): void {
 
 type FeedbackPromptProps = {
   slug: string;
+  profileVersion: number;
 };
 
 /**
  * Collects anonymous print outcome feedback on the profile page.
  * Renders on page load; buttons are replaced by a confirmation after one response.
  */
-export function FeedbackPrompt({ slug }: FeedbackPromptProps) {
+export function FeedbackPrompt({ slug, profileVersion }: FeedbackPromptProps) {
   const [state, setState] = useState<FeedbackState>({ status: 'idle' });
 
   function handleToggleReason(reason: FailureReason) {
@@ -84,6 +86,7 @@ export function FeedbackPrompt({ slug }: FeedbackPromptProps) {
       submitFeedback({
         slug,
         outcome: 'failure',
+        profileVersion,
         failureReasons: current.selectedReasons,
       });
 
@@ -92,12 +95,12 @@ export function FeedbackPrompt({ slug }: FeedbackPromptProps) {
   }
 
   function handleSuccess() {
-    submitFeedback({ slug, outcome: 'success' });
+    submitFeedback({ slug, outcome: 'success', profileVersion });
     setState({ status: 'confirmed', message: SUCCESS_MESSAGE });
   }
 
   function handlePending() {
-    submitFeedback({ slug, outcome: 'pending' });
+    submitFeedback({ slug, outcome: 'pending', profileVersion });
     setState({ status: 'confirmed', message: PENDING_MESSAGE });
   }
 

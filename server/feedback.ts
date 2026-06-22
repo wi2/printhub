@@ -72,6 +72,7 @@ export function createFeedbackHandler(deps: FeedbackHandlerDeps) {
       slug: validated.slug,
       outcome: validated.outcome,
       failureReasons: validated.failureReasons ?? [],
+      profileVersion: validated.profileVersion,
       submittedAt: new Date().toISOString(),
     });
 

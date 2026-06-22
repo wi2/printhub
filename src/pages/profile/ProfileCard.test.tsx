@@ -28,6 +28,8 @@ const PRUSA_ENTRY: ManifestEntry = {
   highlights: ['Speed highlight.', 'Layer highlight.', 'Temp highlight.'],
 };
 
+const PROFILE_VERSION = 1;
+
 describe('ProfileCard download flow (S-3.7)', () => {
   let clickSpy: ReturnType<typeof vi.fn>;
 
@@ -53,7 +55,7 @@ describe('ProfileCard download flow (S-3.7)', () => {
   });
 
   it('shows the feedback prompt on page load before download', () => {
-    render(<ProfileCard entry={BAMBU_ENTRY} />);
+    render(<ProfileCard entry={BAMBU_ENTRY} profileVersion={PROFILE_VERSION} />);
 
     expect(
       screen.getByRole('heading', { name: 'How did your print go?' }),
@@ -62,7 +64,7 @@ describe('ProfileCard download flow (S-3.7)', () => {
   });
 
   it('shows validation status and before-printing guidance', () => {
-    render(<ProfileCard entry={BAMBU_ENTRY} />);
+    render(<ProfileCard entry={BAMBU_ENTRY} profileVersion={PROFILE_VERSION} />);
 
     expect(screen.getByRole('heading', { name: 'Validation status' })).toBeInTheDocument();
     expect(screen.getByText(/engineering validation/i)).toBeInTheDocument();
@@ -73,7 +75,7 @@ describe('ProfileCard download flow (S-3.7)', () => {
   });
 
   it('shows the download filename for confidence', () => {
-    render(<ProfileCard entry={BAMBU_ENTRY} />);
+    render(<ProfileCard entry={BAMBU_ENTRY} profileVersion={PROFILE_VERSION} />);
 
     expect(
       screen.getByLabelText('Download filename'),
@@ -82,7 +84,7 @@ describe('ProfileCard download flow (S-3.7)', () => {
 
   it('reveals the import guide and download confirmation after the first download click', async () => {
     const user = userEvent.setup();
-    render(<ProfileCard entry={BAMBU_ENTRY} />);
+    render(<ProfileCard entry={BAMBU_ENTRY} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: 'Download profile' }));
 
@@ -94,7 +96,7 @@ describe('ProfileCard download flow (S-3.7)', () => {
 
   it('keeps the import guide visible when download is clicked again', async () => {
     const user = userEvent.setup();
-    render(<ProfileCard entry={BAMBU_ENTRY} />);
+    render(<ProfileCard entry={BAMBU_ENTRY} profileVersion={PROFILE_VERSION} />);
 
     const downloadButton = screen.getByRole('button', { name: 'Download profile' });
     await user.click(downloadButton);
@@ -108,7 +110,7 @@ describe('ProfileCard download flow (S-3.7)', () => {
 
   it('shows the PrusaSlicer import guide for Prusa-format profiles', async () => {
     const user = userEvent.setup();
-    render(<ProfileCard entry={PRUSA_ENTRY} />);
+    render(<ProfileCard entry={PRUSA_ENTRY} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: 'Download profile' }));
 

@@ -24,6 +24,14 @@ const MOCK_ENTRY: ManifestEntry = {
   ],
 };
 
+function useProfileVersionHandler() {
+  server.use(
+    http.get('/profiles/bambu-a1-mini-pla-04mm-balanced.json', () =>
+      HttpResponse.json({ metadata: { version: 1 } }),
+    ),
+  );
+}
+
 function renderAtProfileRoute(slug: string) {
   render(
     <MemoryRouter initialEntries={[`/profile/${slug}`]}>
@@ -42,6 +50,7 @@ describe('ProfilePage', () => {
         HttpResponse.json({ combinations: [MOCK_ENTRY] }),
       ),
     );
+    useProfileVersionHandler();
     // jsdom does not define navigator.clipboard; install a stub so handleShare
     // can resolve and the 'Copied!' confirmation can be observed.
     Object.defineProperty(navigator, 'clipboard', {
@@ -101,6 +110,7 @@ describe('ProfilePage', () => {
           HttpResponse.json({ combinations: [MOCK_ENTRY] }),
         ),
       );
+      useProfileVersionHandler();
 
       await user.click(screen.getByRole('button', { name: 'Try again' }));
 

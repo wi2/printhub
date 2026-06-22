@@ -126,12 +126,25 @@ export type FeedbackOutcome = 'success' | 'failure' | 'pending';
 /**
  * A single anonymous feedback submission stored against a combination slug.
  * failureReasons is an empty array when outcome is not "failure".
+ * profileVersion links the submission to the canonical profile revision active at submit time.
  */
 export type FeedbackSession = {
   slug: string;
   outcome: FeedbackOutcome;
   failureReasons: string[];
+  profileVersion: number;
   submittedAt: string;
+};
+
+/**
+ * Request body for POST /api/feedback.
+ * profileVersion must match metadata.version from the canonical JSON profile artifact.
+ */
+export type FeedbackSubmission = {
+  slug: string;
+  outcome: FeedbackOutcome;
+  profileVersion: number;
+  failureReasons?: string[];
 };
 
 /**

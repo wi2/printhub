@@ -6,6 +6,7 @@ import { server } from '../../lib/msw/server';
 import { FeedbackPrompt, FAILURE_REASONS } from './FeedbackPrompt';
 
 const SLUG = 'bambu-a1-mini-pla-04mm-balanced';
+const PROFILE_VERSION = 1;
 
 describe('FeedbackPrompt', () => {
   beforeEach(() => {
@@ -15,7 +16,7 @@ describe('FeedbackPrompt', () => {
   });
 
   it('renders the question and three response buttons on page load', () => {
-    render(<FeedbackPrompt slug={SLUG} />);
+    render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
     expect(
       screen.getByRole('heading', { name: 'How did your print go?' }),
@@ -27,7 +28,7 @@ describe('FeedbackPrompt', () => {
 
   it('shows a thank-you message after clicking Yes and hides the response buttons', async () => {
     const user = userEvent.setup();
-    render(<FeedbackPrompt slug={SLUG} />);
+    render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: 'Yes — it worked' }));
 
@@ -39,7 +40,7 @@ describe('FeedbackPrompt', () => {
 
   it('shows the failure reason form after clicking No', async () => {
     const user = userEvent.setup();
-    render(<FeedbackPrompt slug={SLUG} />);
+    render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: 'No — it failed' }));
 
@@ -52,7 +53,7 @@ describe('FeedbackPrompt', () => {
 
   it('allows multi-select failure reasons and submits a thank-you message', async () => {
     const user = userEvent.setup();
-    render(<FeedbackPrompt slug={SLUG} />);
+    render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: 'No — it failed' }));
     await user.click(screen.getByRole('checkbox', { name: 'Stringing or oozing' }));
@@ -67,7 +68,7 @@ describe('FeedbackPrompt', () => {
 
   it('shows the not-yet message after clicking I haven\'t printed yet', async () => {
     const user = userEvent.setup();
-    render(<FeedbackPrompt slug={SLUG} />);
+    render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: "I haven't printed yet" }));
 
@@ -79,7 +80,7 @@ describe('FeedbackPrompt', () => {
 
   it('does not show an email field on the not-yet path', async () => {
     const user = userEvent.setup();
-    render(<FeedbackPrompt slug={SLUG} />);
+    render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
     await user.click(screen.getByRole('button', { name: "I haven't printed yet" }));
 
@@ -98,11 +99,15 @@ describe('FeedbackPrompt', () => {
       );
 
       const user = userEvent.setup();
-      render(<FeedbackPrompt slug={SLUG} />);
+      render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
       await user.click(screen.getByRole('button', { name: 'Yes — it worked' }));
 
-      expect(capturedBody).toEqual({ slug: SLUG, outcome: 'success' });
+      expect(capturedBody).toEqual({
+        slug: SLUG,
+        outcome: 'success',
+        profileVersion: PROFILE_VERSION,
+      });
     });
 
     it('calls POST /api/feedback with failure reasons when failure form is submitted', async () => {
@@ -115,7 +120,7 @@ describe('FeedbackPrompt', () => {
       );
 
       const user = userEvent.setup();
-      render(<FeedbackPrompt slug={SLUG} />);
+      render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
       await user.click(screen.getByRole('button', { name: 'No — it failed' }));
       await user.click(screen.getByRole('checkbox', { name: 'Stringing or oozing' }));
@@ -124,6 +129,7 @@ describe('FeedbackPrompt', () => {
       expect(capturedBody).toEqual({
         slug: SLUG,
         outcome: 'failure',
+        profileVersion: PROFILE_VERSION,
         failureReasons: ['Stringing or oozing'],
       });
     });
@@ -138,11 +144,15 @@ describe('FeedbackPrompt', () => {
       );
 
       const user = userEvent.setup();
-      render(<FeedbackPrompt slug={SLUG} />);
+      render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
       await user.click(screen.getByRole('button', { name: "I haven't printed yet" }));
 
-      expect(capturedBody).toEqual({ slug: SLUG, outcome: 'pending' });
+      expect(capturedBody).toEqual({
+        slug: SLUG,
+        outcome: 'pending',
+        profileVersion: PROFILE_VERSION,
+      });
     });
 
     it('shows thank-you and logs to console when the API call fails', async () => {
@@ -150,7 +160,7 @@ describe('FeedbackPrompt', () => {
       server.use(http.post('/api/feedback', () => HttpResponse.error()));
 
       const user = userEvent.setup();
-      render(<FeedbackPrompt slug={SLUG} />);
+      render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
 
       await user.click(screen.getByRole('button', { name: 'Yes — it worked' }));
 

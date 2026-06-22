@@ -5,6 +5,7 @@ const VALID_OUTCOMES = new Set<FeedbackOutcome>(['success', 'failure', 'pending'
 export type FeedbackRequest = {
   slug: string;
   outcome: FeedbackOutcome;
+  profileVersion: number;
   failureReasons?: string[];
 };
 
@@ -25,10 +26,22 @@ export function validateFeedbackInput(
   }
 
   const record = body as Record<string, unknown>;
-  const { slug, outcome, failureReasons } = record;
+  const { slug, outcome, profileVersion, failureReasons } = record;
 
   if (typeof slug !== 'string' || slug.trim() === '') {
     return { status: 400, message: 'slug is required' };
+  }
+
+  if (profileVersion === undefined) {
+    return { status: 400, message: 'profileVersion is required' };
+  }
+
+  if (
+    typeof profileVersion !== 'number' ||
+    !Number.isInteger(profileVersion) ||
+    profileVersion < 1
+  ) {
+    return { status: 400, message: 'profileVersion must be a positive integer' };
   }
 
   if (typeof outcome !== 'string' || !VALID_OUTCOMES.has(outcome as FeedbackOutcome)) {
@@ -57,6 +70,7 @@ export function validateFeedbackInput(
   return {
     slug,
     outcome: outcome as FeedbackOutcome,
+    profileVersion,
     failureReasons: failureReasons as string[] | undefined,
   };
 }

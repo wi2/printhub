@@ -37,13 +37,14 @@ function formatDownloadFilename(entry: ManifestEntry): string {
 
 type ProfileCardProps = {
   entry: ManifestEntry;
+  profileVersion: number;
 };
 
 /**
  * Renders the full profile result: configuration summary, highlights, validation
  * status, download with file details, import guide, and feedback prompt.
  */
-export function ProfileCard({ entry }: ProfileCardProps) {
+export function ProfileCard({ entry, profileVersion }: ProfileCardProps) {
   const [copied, setCopied] = useState(false);
   const [showImportGuide, setShowImportGuide] = useState(false);
   const configTags = formatConfigTags(entry);
@@ -133,7 +134,7 @@ export function ProfileCard({ entry }: ProfileCardProps) {
         </section>
       )}
 
-      <FeedbackPrompt slug={entry.slug} />
+      <FeedbackPrompt slug={entry.slug} profileVersion={profileVersion} />
     </div>
   );
 }

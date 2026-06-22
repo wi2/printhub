@@ -27,6 +27,7 @@ function cloneRecord(record: FeedbackSession): FeedbackSession {
     slug: record.slug,
     outcome: record.outcome,
     failureReasons: [...record.failureReasons],
+    profileVersion: record.profileVersion,
     submittedAt: record.submittedAt,
   };
 }

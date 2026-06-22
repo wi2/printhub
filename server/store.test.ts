@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, beforeEach } from 'vitest';
+import type { FeedbackSession } from '../src/types.js';
 import { createFeedbackStore, createFileFeedbackStore } from './store.js';
 
 describe('createFeedbackStore', () => {
@@ -11,11 +12,12 @@ describe('createFeedbackStore', () => {
     store.clear();
   });
 
-  it('records slug, outcome, failureReasons, and submittedAt', () => {
+  it('records slug, outcome, failureReasons, profileVersion, and submittedAt', () => {
     store.insert({
       slug: 'bambu-a1-mini-pla-04mm-balanced',
       outcome: 'failure',
       failureReasons: ['Stringing or oozing'],
+      profileVersion: 1,
       submittedAt: '2026-01-01T00:00:00.000Z',
     });
 
@@ -27,24 +29,28 @@ describe('createFeedbackStore', () => {
       slug: 'bambu-a1-mini-pla-04mm-balanced',
       outcome: 'success',
       failureReasons: [],
+      profileVersion: 1,
       submittedAt: '2026-01-01T00:00:00.000Z',
     });
     store.insert({
       slug: 'bambu-a1-mini-pla-04mm-balanced',
       outcome: 'success',
       failureReasons: [],
+      profileVersion: 1,
       submittedAt: '2026-01-02T00:00:00.000Z',
     });
     store.insert({
       slug: 'bambu-a1-mini-pla-04mm-balanced',
       outcome: 'pending',
       failureReasons: [],
+      profileVersion: 1,
       submittedAt: '2026-01-03T00:00:00.000Z',
     });
     store.insert({
       slug: 'prusa-mk4-pla-04mm-balanced',
       outcome: 'success',
       failureReasons: [],
+      profileVersion: 1,
       submittedAt: '2026-01-01T00:00:00.000Z',
     });
 
@@ -60,6 +66,7 @@ describe('createFeedbackStore', () => {
       slug: 'bambu-a1-mini-pla-04mm-balanced',
       outcome: 'success',
       failureReasons: [],
+      profileVersion: 1,
       submittedAt: '2026-01-01T00:00:00.000Z',
     });
 
@@ -82,11 +89,28 @@ describe('createFileFeedbackStore', () => {
       slug: 'bambu-a1-mini-pla-04mm-balanced',
       outcome: 'success',
       failureReasons: [],
+      profileVersion: 1,
       submittedAt: '2026-01-01T00:00:00.000Z',
     });
 
     const secondStore = createFileFeedbackStore(filePath);
     expect(secondStore.countSuccessBySlug('bambu-a1-mini-pla-04mm-balanced')).toBe(1);
+
+    rmSync(tempDir, { recursive: true });
+  });
+
+  it('persists profileVersion in the JSON file', () => {
+    const fileStore = createFileFeedbackStore(filePath);
+    fileStore.insert({
+      slug: 'bambu-a1-mini-pla-04mm-balanced',
+      outcome: 'success',
+      failureReasons: [],
+      profileVersion: 2,
+      submittedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const records = JSON.parse(readFileSync(filePath, 'utf-8')) as FeedbackSession[];
+    expect(records[0]?.profileVersion).toBe(2);
 
     rmSync(tempDir, { recursive: true });
   });

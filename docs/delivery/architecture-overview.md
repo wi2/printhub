@@ -33,7 +33,7 @@ Home (/)
 
 5. **Import guide** — After the first download, `ImportGuide` reveals slicer-specific import steps (PrusaSlicer vs Bambu Orca).
 
-6. **Feedback collection** — `FeedbackPrompt` is visible on page load. The user reports success, failure (with preset reasons), or pending. Submissions POST to `/api/feedback` and are persisted to a JSON file store.
+6. **Feedback collection** — `FeedbackPrompt` is visible on page load. The user reports success, failure (with preset reasons), or pending. Submissions POST to `/api/feedback` with `profileVersion` read from the canonical JSON profile artifact (`/profiles/[slug].json`). Records are persisted to a JSON file store.
 
 ### Build-time flow (profile engine)
 
@@ -211,7 +211,7 @@ Served from `public/` after `build:profiles`. The manifest is the single source 
 
 - **Endpoint:** `POST /api/feedback`
 - **Validation:** Input schema check, manifest slug lookup, rate limiting
-- **Payload:** `{ slug, outcome, failureReasons? }` where outcome is `success`, `failure`, or `pending`
+- **Payload:** `{ slug, outcome, profileVersion, failureReasons? }` where outcome is `success`, `failure`, or `pending` and `profileVersion` is a positive integer matching `metadata.version` from the canonical JSON profile
 - **Response:** `{ ok: true }` on success
 
 ### JSON feedback store
@@ -257,7 +257,7 @@ This document describes the V1 (MVP) architecture. The following planned changes
 
 | Phase | Change | Reference |
 |---|---|---|
-| **V2** | `ProfileVersion` records persisted to SQLite; feedback store migrated; feedback-to-version linkage | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
+| **V2** | Feedback submissions linked to profile version via `profileVersion`; queryable `ProfileVersion` records and SQLite migration remain future work | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
 | **V2–V3** | Stats API (`GET /api/profile/:slug/stats`) implemented; confidence scoring added to `ProfilePage` | [backlog.md V3 stories](./backlog.md) |
 | **V4–V5** | Parameter comparison, rule-based suggestions, AI recommendation pipeline — all with mandatory human review | [roadmap-v2-v5.md](./roadmap-v2-v5.md) |
 

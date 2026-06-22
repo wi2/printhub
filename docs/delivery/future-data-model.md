@@ -8,6 +8,8 @@
 
 **V2 Sprint 1 update:** Canonical JSON profiles now include `metadata.version` (integer, initial value `1`). This is the profile version identity field that future `Feedback` records will reference. Version history, SQLite persistence, and queryable `ProfileVersion` records are not yet implemented.
 
+**V2 Sprint 2 update:** Feedback submissions now include `profileVersion` (required integer matching `metadata.version` from the canonical JSON artifact). Records are persisted in the existing JSON file store. Version history, profile evolution, and queryable `ProfileVersion` records remain future work.
+
 ---
 
 ## Overview
@@ -104,7 +106,7 @@ Represents a specific set of resolved parameters for a Profile at a point in tim
 
 **V2 introduction.** The canonical JSON document described in ADR-004 maps directly to this entity. The first `ProfileVersion` for each existing combination is created during the V2 migration build.
 
-**Feedback linkage (planned):** Post-V2 `Feedback` records will include `profileVersionId` referencing the `ProfileVersion` that was active at download time. Pre-V2 feedback cannot be retroactively linked. Version history (querying past versions, diffing, archiving) is not implemented at V2 Sprint 1.
+**Feedback linkage (V2 Sprint 2 foundation):** Feedback records now include `profileVersion` (integer matching `metadata.version` from the canonical JSON artifact at submit time). This enables future analytics to attribute outcomes to a specific profile revision. Queryable `ProfileVersion` records, version history, and profile evolution are not yet implemented. Pre-V2 Sprint 2 feedback cannot be retroactively linked.
 
 **Why `layerSources` matters:** In V4, parameter impact analysis needs to know which layer was responsible for a given parameter value. If `printSpeed` changes between versions and outcomes improve, knowing that the printer layer drove that change (not the goal layer) narrows the investigation.
 
@@ -138,8 +140,9 @@ Records a user-submitted print outcome for a specific download event.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `string` | Unique |
+| `profileVersion` | `number` | **Implemented (V2 Sprint 2).** Matches `metadata.version` from the canonical JSON profile at submit time. Maps to `ProfileVersion.versionNumber` when queryable version records exist. |
 | `generationId` | `ProfileGeneration.id?` | Optional link to the download event; `undefined` for pre-V2 submissions |
-| `profileVersionId` | `ProfileVersion.id?` | Denormalized for query convenience; `undefined` for pre-V2 submissions |
+| `profileVersionId` | `ProfileVersion.id?` | Denormalized for query convenience; `undefined` until queryable `ProfileVersion` records exist |
 | `slug` | `string` | Combination slug — preserved for backward compatibility with pre-V2 records |
 | `outcome` | `enum` | `success` \| `failure` \| `pending` |
 | `failureReasons` | `string[]?` | Selected from the preset list in `server/validate-input.ts` |
@@ -147,9 +150,11 @@ Records a user-submitted print outcome for a specific download event.
 | `submittedAt` | `string` | ISO 8601 |
 | `ipHash` | `string` | Hashed for rate limiting |
 
-**V1 shape (current):** `{ slug, outcome, failureReasons? }` stored as newline-delimited JSON in `data/feedback.json`.
+**V1 shape (current through V2 Sprint 1):** `{ slug, outcome, failureReasons?, submittedAt }` stored as JSON in `data/feedback.json`.
 
-**V2 change:** Persisted to SQLite `feedback` table with `generationId` and `profileVersionId` foreign keys. Existing `feedback.json` records are imported with `generationId: undefined` and `profileVersionId: undefined` to preserve history.
+**V2 Sprint 2 shape (current):** `{ slug, outcome, failureReasons, profileVersion, submittedAt }` stored as JSON in `data/feedback.json`. `profileVersion` links each submission to the canonical profile revision active at submit time.
+
+**Future V2+ change:** Persisted to SQLite `feedback` table with `generationId` and `profileVersionId` foreign keys. Existing `feedback.json` records are imported with `generationId: undefined` and `profileVersionId: undefined` to preserve history.
 
 ---
 
