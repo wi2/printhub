@@ -87,6 +87,22 @@ Layered YAML
 
 **V2 Sprint 7 note:** `SqliteFeedbackRepository` implements the same `FeedbackRepository` interface using `better-sqlite3` — no ORM. The composition root selects storage via `FEEDBACK_STORE=file|sqlite` (default `file`). A one-way migration utility copies existing JSON records into SQLite idempotently. **SQLite is an implementation detail behind FeedbackRepository.** API contracts, analytics, and the feedback schema are unchanged.
 
+**V2 Sprint 8 note:** `GET /api/profiles/:slug/stats` exposes profile-level analytics through a read-only API. `ProfileStatsService` (`server/services/profile-stats.ts`) loads feedback via `FeedbackRepository`, aggregates with `buildFeedbackReport()`, and reads `currentVersion` from the build-time Profile Version Registry (`generated/profile-versions/index.json`). **Statistics are informational only and do not modify profile versions.** No frontend UI, caching, authentication, or pagination at V2 Sprint 8.
+
+```
+POST /api/feedback → FeedbackRepository → Storage (JSON file or SQLite via FEEDBACK_STORE)
+
+GET /api/profiles/:slug/stats
+ ↓
+FeedbackRepository.findBySlug()
+ ↓
+buildFeedbackReport()   ← V2 Sprint 5 (pure functions)
+ ↓
+ProfileStatsService
+ ↓
+Profile Version Registry (generated/profile-versions/index.json)   ← currentVersion lookup
+```
+
 ```
 API
  ↓
@@ -123,6 +139,7 @@ Storage (data/feedback.json — FileFeedbackRepository, or data/feedback.db — 
 - Analytics aggregation produces deterministic per-slug, per-version success rates from feedback records — **met at V2 Sprint 5**
 - Feedback persistence is behind a `FeedbackRepository` abstraction with no handler-level file I/O — **met at V2 Sprint 6**
 - SQLite feedback store available as an opt-in backend via `FEEDBACK_STORE=sqlite` — **met at V2 Sprint 7**
+- Profile statistics API returns per-slug success/failure counts and failure reason breakdowns — **met at V2 Sprint 8**
 - Profile authors can view a parameter diff between any two versions of a combination
 - Zero serializer regressions in the ARCH-4 conformance suite
 
@@ -136,7 +153,7 @@ Accumulate enough real-world outcome data to compute meaningful success rates pe
 
 ### Objectives
 
-1. **Stats API** — queryable endpoint returning success/failure counts per combination, backed by V2 feedback records
+1. **Stats API** — queryable endpoint returning success/failure counts per combination, backed by V2 feedback records — **implemented at V2 Sprint 8 (`GET /api/profiles/:slug/stats`)**
 2. **Confidence scoring** — a score derived from submission count and outcome distribution; displayed on profile pages
 3. **Aggregated insights** — success rates broken down by printer family and material type (internal curator views first, user-facing later)
 4. **Threshold alerting** — flag combinations whose reported success rate falls below an acceptable threshold for curator review
@@ -144,21 +161,23 @@ Accumulate enough real-world outcome data to compute meaningful success rates pe
 
 ### Architecture Changes Required
 
-V3 adds a read path to the V2 feedback store, consuming the V2 Sprint 5 analytics layer:
+V3 adds a read path to the V2 feedback store, consuming the V2 Sprint 5 analytics layer. The stats API endpoint was implemented at V2 Sprint 8; V3 adds confidence scoring UI and optional caching:
 
 ```
 POST /api/feedback → FeedbackRepository → Storage (JSON file or SQLite via FEEDBACK_STORE)
                           ↓
                    server/analytics/buildFeedbackReport()   ← V2 Sprint 5 (pure functions)
-                          ↓ (scheduled or on-demand at V3)
-                   GET /api/profile/:slug/stats
                           ↓
-                   ProfilePage (confidence score UI)
+                   ProfileStatsService   ← V2 Sprint 8
+                          ↓
+                   GET /api/profiles/:slug/stats   ← V2 Sprint 8 (implemented)
+                          ↓
+                   ProfilePage (confidence score UI)   ← V3 (planned)
 ```
 
 The repository abstraction (V2 Sprint 6) isolates handlers from storage. Swapping `FileFeedbackRepository` for a SQLite implementation requires no handler changes.
 
-The V2 Sprint 5 analytics functions are pure and stateless — V3 wraps them in an API endpoint and optionally caches results. The aggregation job can run on a schedule (e.g. hourly) or inline on the stats endpoint at expected V3 query volume. **Analytics are computed from feedback records and do not modify profiles automatically.**
+The V2 Sprint 5 analytics functions are pure and stateless — V2 Sprint 8 wraps them in the stats API endpoint. V3 may add optional caching around these functions. **Statistics are informational only and do not modify profile versions.**
 
 ### Dependencies
 

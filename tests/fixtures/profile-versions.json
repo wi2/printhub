@@ -1,0 +1,27 @@
+{
+  "bambu-a1-mini-pla-04mm-balanced": {
+    "currentVersion": 2,
+    "versions": [
+      {
+        "version": 1,
+        "slug": "bambu-a1-mini-pla-04mm-balanced",
+        "status": "active"
+      },
+      {
+        "version": 2,
+        "slug": "bambu-a1-mini-pla-04mm-balanced",
+        "status": "active"
+      }
+    ]
+  },
+  "prusa-mk4-pla-04mm-balanced": {
+    "currentVersion": 1,
+    "versions": [
+      {
+        "version": 1,
+        "slug": "prusa-mk4-pla-04mm-balanced",
+        "status": "active"
+      }
+    ]
+  }
+}

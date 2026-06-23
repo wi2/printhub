@@ -170,13 +170,15 @@ Future migration approach (not implemented): detect `metadata.schemaVersion` →
 ```
 POST /api/feedback ─────────────────────────────────→ FeedbackRepository
                                                               ↓
-                                               Storage (JSON file → SQLite in V2+)
+                                               Storage (JSON file or SQLite via FEEDBACK_STORE)
                                                               ↓
                                                server/analytics/buildFeedbackReport()   ← V2 Sprint 5
                                                               ↓
-                                               GET /api/profile/:slug/stats   ← V3 (wraps analytics layer)
+                                               ProfileStatsService   ← V2 Sprint 8
                                                               ↓
-                                               ProfilePage (confidence score)
+                                               GET /api/profiles/:slug/stats   ← V2 Sprint 8 (implemented)
+                                                              ↓
+                                               ProfilePage (confidence score)   ← V3 (planned)
 ```
 
 The repository layer (V2 Sprint 6) decouples handlers from storage. V2 Sprint 7 adds `SqliteFeedbackRepository` as an opt-in backend (`FEEDBACK_STORE=sqlite`). The JSON file store remains the default. A future PostgreSQL implementation follows the same interface — no handler changes required.
@@ -186,13 +188,13 @@ The V2 Sprint 5 analytics layer (`server/analytics/`) provides pure functions th
 - Failure reason breakdowns (`FailureReasonMetrics`)
 - Global totals for confidence scoring
 
-V3 adds the stats API endpoint and optional caching around these functions. The aggregation job computes per-combination:
+V2 Sprint 8 added the stats API endpoint (`GET /api/profiles/:slug/stats`) via `ProfileStatsService`. V3 adds confidence scoring UI and optional caching around these functions. The aggregation computes per-combination:
 - Total submission count
 - Success / failure / pending counts
 - Success rate = success ÷ (success + failure)
-- Confidence tier based on total submission count
+- Confidence tier based on total submission count (V3 UI)
 
-**Analytics are computed from feedback records and do not modify profiles automatically.**
+**Statistics are informational only and do not modify profile versions.**
 
 ### V4 — Analysis Layer
 

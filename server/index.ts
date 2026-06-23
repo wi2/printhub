@@ -3,9 +3,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createFeedbackHandler } from './feedback.js';
 import { createManifestLookup, resolveManifestPath } from './manifest.js';
+import {
+  createProfileVersionRegistryLookup,
+  resolveProfileVersionRegistryPath,
+} from './profile-version-registry.js';
+import { createProfileStatsHandler, parseProfileStatsPath } from './profile-stats.js';
 import { createRateLimiter, type RateLimiter } from './rate-limit.js';
 import { createFeedbackRepository } from './repositories/create-feedback-repository.js';
 import type { FeedbackRepository } from './repositories/feedback-repository.js';
+import { createProfileStatsService } from './services/profile-stats.js';
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -21,6 +27,7 @@ export const feedbackRepository = createFeedbackRepository(projectRoot);
 export type AppServerOptions = {
   repository?: FeedbackRepository;
   manifestPath?: string;
+  profileVersionRegistryPath?: string;
   rateLimiter?: RateLimiter;
 };
 
@@ -34,6 +41,11 @@ export function createAppServer(options: AppServerOptions = {}): Server {
   );
   const rateLimiter = options.rateLimiter ?? createRateLimiter(5, 60_000);
   const handleFeedback = createFeedbackHandler({ repository, manifest, rateLimiter });
+  const registry = createProfileVersionRegistryLookup(
+    options.profileVersionRegistryPath ?? resolveProfileVersionRegistryPath(projectRoot),
+  );
+  const statsService = createProfileStatsService({ repository, registry });
+  const handleProfileStats = createProfileStatsHandler({ statsService });
 
   return createServer(async (req, res) => {
     const url = req.url?.split('?')[0];
@@ -41,6 +53,12 @@ export function createAppServer(options: AppServerOptions = {}): Server {
     if (req.method === 'GET' && url === '/health') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('ok');
+      return;
+    }
+
+    const statsSlug = parseProfileStatsPath(url);
+    if (req.method === 'GET' && statsSlug) {
+      await handleProfileStats(statsSlug, res, req);
       return;
     }
 

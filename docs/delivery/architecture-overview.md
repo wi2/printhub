@@ -188,13 +188,18 @@ The frontend never runs the engine. It reads the manifest and serves static prof
 │  └────────┬────────┘                                    │
 └───────────┼─────────────────────────────────────────────┘
             │ POST /api/feedback
+            │ GET /api/profiles/:slug/stats
             ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Feedback API (Node.js, server/index.ts)                │
+│  API server (Node.js, server/index.ts)                  │
 │  ┌─────────────────┐  ┌──────────────────────────────┐  │
-│  │ Rate limiter    │  │ JSON feedback store          │  │
-│  │ (5 req/min/IP)  │  │ data/feedback.json           │  │
+│  │ Rate limiter    │  │ FeedbackRepository           │  │
+│  │ (5 req/min/IP)  │  │ (file or SQLite)             │  │
 │  └─────────────────┘  └──────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │ ProfileStatsService → buildFeedbackReport()      │   │
+│  │ Profile Version Registry (currentVersion lookup) │   │
+│  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -219,6 +224,15 @@ Served from `public/` after `build:profiles`. The manifest is the single source 
 - **Payload:** `{ slug, outcome, profileVersion, failureReasons? }` where outcome is `success`, `failure`, or `pending` and `profileVersion` is a positive integer matching `metadata.version` from the canonical JSON profile
 - **Response:** `{ ok: true }` on success
 
+### Profile statistics API
+
+- **Endpoint:** `GET /api/profiles/:slug/stats`
+- **Validation:** Slug lookup against build-time Profile Version Registry (`generated/profile-versions/index.json`)
+- **Response:** `{ slug, currentVersion, totalFeedback, successCount, failureCount, successRate, failureReasons }`
+- **Errors:** `404 { error: "Profile not found" }` when slug is not in the registry; `200` with zeroed counts when no feedback exists yet
+- **Read path:** `FeedbackRepository` → `buildFeedbackReport()` → `ProfileStatsService` → API handler
+- **Note:** Statistics are informational only and do not modify profile versions. No caching, authentication, or pagination at V2 Sprint 8.
+
 ### Feedback store
 
 - **Default:** `data/feedback.json` via `FileFeedbackRepository` (configurable via `FEEDBACK_STORE_PATH`)
@@ -227,7 +241,7 @@ Served from `public/` after `build:profiles`. The manifest is the single source 
 - **Rationale:** JSON file for zero dependency overhead at launch; SQLite (`better-sqlite3`, no ORM) for V3 aggregate queries. **SQLite is an implementation detail behind FeedbackRepository.**
 - **Migration:** `npm run migrate:feedback-to-sqlite` copies JSON records to SQLite idempotently
 
-The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are deferred post-launch. Profile pages show a static placeholder: "New profile — be the first to report results."
+Profile pages still show a static placeholder ("New profile — be the first to report results."). Wiring the stats API to the frontend confidence UI is deferred to V3.
 
 ---
 
@@ -253,7 +267,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | **Quality goal not yet available** | Only Balanced goal is in the launch manifest (20 combinations). Quality layer exists but is not built or validated. | Add to build list after physical validation |
 | **Physical validation deferred** | Engineering is complete (M1–M5); all 20 launch combinations are `THEORETICALLY_VALID` only. Launch is blocked until physical test prints pass (PV-1, PV-2; originally S-5.4, S-5.5) | [ADR-003](../decisions/adr-003-deferred-physical-validation.md), [combination-validation-runbook.md](./combination-validation-runbook.md) |
 | **CSR — no SEO on profile pages** | Profile content not in initial HTML; search engines that do not execute JS will not index highlights | Revisit SSG (e.g. `vite-ssg`) before Phase 1 scale |
-| **Static confidence count** | Stats API deferred; all profiles show "be the first to report results" | Wire `GET /api/profile/:slug/stats` post-launch |
+| **Static confidence count** | Stats API implemented; frontend UI not wired yet | Wire `GET /api/profiles/:slug/stats` to `ProfilePage` in V3 |
 | **Guardrail scope** | Only four parameters validated; other settings rely on layer authoring discipline | Expand guarded params in Phase 1 if needed |
 
 ---
@@ -264,8 +278,8 @@ This document describes the V1 (MVP) architecture. The following planned changes
 
 | Phase | Change | Reference |
 |---|---|---|
-| **V2** | Feedback submissions linked to profile version via `profileVersion`; build-time Profile Version Registry at `generated/profile-versions/index.json`; queryable `ProfileVersion` records and SQLite migration remain future work | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
-| **V2–V3** | Stats API (`GET /api/profile/:slug/stats`) implemented; confidence scoring added to `ProfilePage` | [backlog.md V3 stories](./backlog.md) |
+| **V2** | Feedback submissions linked to profile version via `profileVersion`; build-time Profile Version Registry at `generated/profile-versions/index.json`; stats API at `GET /api/profiles/:slug/stats` | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
+| **V3** | Confidence scoring UI on `ProfilePage`; optional stats caching | [backlog.md V3 stories](./backlog.md) |
 | **V4–V5** | Parameter comparison, rule-based suggestions, AI recommendation pipeline — all with mandatory human review | [roadmap-v2-v5.md](./roadmap-v2-v5.md) |
 
 For the entity model that underpins V2+, see [future-data-model.md](./future-data-model.md). For the full architecture evolution diagram, see [future-architecture.md](../architecture/future-architecture.md).
