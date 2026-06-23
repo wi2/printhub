@@ -51,8 +51,9 @@ Give every profile a stable identity and a history. Link user feedback to the ex
 5. **Profile versioning** — each time a combination's parameters change, a new `ProfileVersion` is created; old versions are preserved and queryable — **not yet implemented**
 6. **Feedback linkage** — every feedback submission references the profile version (`metadata.version`) that was active when the profile was viewed — **implemented (V2 Sprint 2 foundation)**
 7. **Feedback analytics foundation** — pure aggregation layer computes per-profile and per-version success rates and failure reason breakdowns from feedback records — **implemented (V2 Sprint 5 foundation)**
-8. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
-9. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
+8. **Feedback repository abstraction** — persistence logic separated from business logic via `FeedbackRepository` interface; file implementation unchanged — **implemented (V2 Sprint 6 foundation)**
+9. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
+10. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
 
 ### Architecture Changes Required
 
@@ -81,6 +82,16 @@ Layered YAML
 
 **V2 Sprint 5 note:** `server/analytics/` provides a pure analytics foundation — `computeProfileMetrics()`, `computeFailureMetrics()`, and `buildFeedbackReport()` aggregate feedback records by slug and `profileVersion`. No UI, API endpoints, database, or runtime behavior changes. **Analytics are computed from feedback records and do not modify profiles automatically.** This layer is consumed by the V3 statistics API and future curator dashboards.
 
+**V2 Sprint 6 note:** `server/repositories/` introduces a `FeedbackRepository` interface and `FileFeedbackRepository` implementation. All feedback persistence logic lives behind the repository; API handlers depend on the interface, not file I/O. The JSON file format, validation flow, and API contract are unchanged. **Business logic must not depend on storage implementation details.** This prepares for SQLite (V2+) and PostgreSQL (future) without changing handler code.
+
+```
+API
+ ↓
+Repository (FeedbackRepository)
+ ↓
+Storage (data/feedback.json — FileFeedbackRepository today)
+```
+
 ### Dependencies
 
 | Dependency | Tracks |
@@ -107,6 +118,7 @@ Layered YAML
 - 100% of canonical JSON artifacts pass `validateCanonicalProfile()` when parsed — **enforced by V2 Sprint 4 validator tests; build pipeline unchanged**
 - 100% of post-V2 Sprint 2 feedback submissions include `profileVersion` linked to `metadata.version`
 - Analytics aggregation produces deterministic per-slug, per-version success rates from feedback records — **met at V2 Sprint 5**
+- Feedback persistence is behind a `FeedbackRepository` abstraction with no handler-level file I/O — **met at V2 Sprint 6**
 - Profile authors can view a parameter diff between any two versions of a combination
 - Zero serializer regressions in the ARCH-4 conformance suite
 
@@ -131,7 +143,7 @@ Accumulate enough real-world outcome data to compute meaningful success rates pe
 V3 adds a read path to the V2 feedback store, consuming the V2 Sprint 5 analytics layer:
 
 ```
-POST /api/feedback → Feedback store (SQLite)
+POST /api/feedback → FeedbackRepository → Storage (JSON file today; SQLite in V2+)
                           ↓
                    server/analytics/buildFeedbackReport()   ← V2 Sprint 5 (pure functions)
                           ↓ (scheduled or on-demand at V3)
@@ -139,6 +151,8 @@ POST /api/feedback → Feedback store (SQLite)
                           ↓
                    ProfilePage (confidence score UI)
 ```
+
+The repository abstraction (V2 Sprint 6) isolates handlers from storage. Swapping `FileFeedbackRepository` for a SQLite implementation requires no handler changes.
 
 The V2 Sprint 5 analytics functions are pure and stateless — V3 wraps them in an API endpoint and optionally caches results. The aggregation job can run on a schedule (e.g. hourly) or inline on the stats endpoint at expected V3 query volume. **Analytics are computed from feedback records and do not modify profiles automatically.**
 

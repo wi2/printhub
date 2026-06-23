@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { FeedbackStore } from './store.js';
+import type { FeedbackRepository } from './repositories/feedback-repository.js';
 import type { ManifestLookup } from './manifest.js';
 import type { RateLimiter } from './rate-limit.js';
 import { validateFeedbackInput } from './validate-input.js';
 
 export type FeedbackHandlerDeps = {
-  store: FeedbackStore;
+  repository: FeedbackRepository;
   manifest: ManifestLookup;
   rateLimiter: RateLimiter;
 };
@@ -68,7 +68,7 @@ export function createFeedbackHandler(deps: FeedbackHandlerDeps) {
       return;
     }
 
-    deps.store.insert({
+    await deps.repository.save({
       slug: validated.slug,
       outcome: validated.outcome,
       failureReasons: validated.failureReasons ?? [],

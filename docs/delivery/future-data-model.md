@@ -162,7 +162,17 @@ Records a user-submitted print outcome for a specific download event.
 
 **V2 Sprint 2 shape (current):** `{ slug, outcome, failureReasons, profileVersion, submittedAt }` stored as JSON in `data/feedback.json`. `profileVersion` links each submission to the canonical profile revision active at submit time.
 
-**Future V2+ change:** Persisted to SQLite `feedback` table with `generationId` and `profileVersionId` foreign keys. Existing `feedback.json` records are imported with `generationId: undefined` and `profileVersionId: undefined` to preserve history.
+**V2 Sprint 6 (current persistence layer):** Feedback records are persisted through `FeedbackRepository` (`server/repositories/feedback-repository.ts`). `FileFeedbackRepository` is the only component that reads or writes `data/feedback.json`. API handlers and analytics depend on the repository interface, not file I/O. **Business logic must not depend on storage implementation details.**
+
+```
+API (POST /api/feedback)
+ ↓
+FeedbackRepository.save()
+ ↓
+Storage (data/feedback.json)
+```
+
+**Future V2+ change:** A `SqliteFeedbackRepository` implements the same `FeedbackRepository` interface. Existing `feedback.json` records are imported with `generationId: undefined` and `profileVersionId: undefined` to preserve history.
 
 **Analytics relationship (V2 Sprint 5 foundation):** Each `Feedback` record's `profileVersion` field links the outcome to the canonical profile revision active at submit time. The analytics layer (`server/analytics/`) reads an array of feedback records and produces `ProfileMetrics` grouped by slug and version, plus `FailureReasonMetrics` for failure reason breakdowns. This enables V3 confidence scoring per combination and V4 parameter impact analysis without modifying profile artifacts. **Analytics are computed from feedback records and do not modify profiles automatically.**
 

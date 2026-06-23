@@ -4,28 +4,29 @@ import { fileURLToPath } from 'node:url';
 import { createFeedbackHandler } from './feedback.js';
 import { createManifestLookup, resolveManifestPath } from './manifest.js';
 import { createRateLimiter, type RateLimiter } from './rate-limit.js';
+import type { FeedbackRepository } from './repositories/feedback-repository.js';
 import {
-  createFileFeedbackStore,
+  FileFeedbackRepository,
   resolveFeedbackStorePath,
-  type FeedbackStore,
-} from './store.js';
+} from './repositories/file-feedback-repository.js';
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
  * PrintHub runtime API server entry point.
  *
- * Feedback store: JSON file at data/feedback.json (see store.ts). Chosen over
- * SQLite or Postgres for zero dependency overhead at MVP — a single append-only
- * JSON file satisfies durable storage for launch volume. Swap createFileFeedbackStore
- * for SQLite when query volume or concurrent writes require it.
+ * Feedback persistence: JSON file at data/feedback.json via FileFeedbackRepository.
+ * Chosen over SQLite or Postgres for zero dependency overhead at MVP — a single
+ * append-only JSON file satisfies durable storage for launch volume. Swap
+ * FileFeedbackRepository for a SQLite implementation when query volume or
+ * concurrent writes require it.
  */
-export const feedbackStore = createFileFeedbackStore(
+export const feedbackRepository = new FileFeedbackRepository(
   process.env.FEEDBACK_STORE_PATH ?? resolveFeedbackStorePath(projectRoot),
 );
 
 export type AppServerOptions = {
-  store?: FeedbackStore;
+  repository?: FeedbackRepository;
   manifestPath?: string;
   rateLimiter?: RateLimiter;
 };
@@ -34,12 +35,12 @@ export type AppServerOptions = {
  * Creates the HTTP server with injectable dependencies for integration tests.
  */
 export function createAppServer(options: AppServerOptions = {}): Server {
-  const store = options.store ?? feedbackStore;
+  const repository = options.repository ?? feedbackRepository;
   const manifest = createManifestLookup(
     options.manifestPath ?? resolveManifestPath(projectRoot),
   );
   const rateLimiter = options.rateLimiter ?? createRateLimiter(5, 60_000);
-  const handleFeedback = createFeedbackHandler({ store, manifest, rateLimiter });
+  const handleFeedback = createFeedbackHandler({ repository, manifest, rateLimiter });
 
   return createServer(async (req, res) => {
     const url = req.url?.split('?')[0];

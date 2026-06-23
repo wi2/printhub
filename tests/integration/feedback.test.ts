@@ -6,11 +6,40 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Server } from 'node:http';
 import { createAppServer } from '../../server/index.js';
 import { createRateLimiter } from '../../server/rate-limit.js';
-import { createFeedbackStore, createFileFeedbackStore } from '../../server/store.js';
+import { FileFeedbackRepository } from '../../server/repositories/file-feedback-repository.js';
+import type { FeedbackRepository } from '../../server/repositories/feedback-repository.js';
 import type { FeedbackSession } from '../../src/types.js';
 
 const manifestPath = join(dirname(fileURLToPath(import.meta.url)), '../fixtures/manifest.json');
 const PROFILE_VERSION = 1;
+
+class TestFeedbackRepository implements FeedbackRepository {
+  private records: FeedbackSession[] = [];
+
+  async save(feedback: FeedbackSession): Promise<void> {
+    this.records.push({ ...feedback, failureReasons: [...feedback.failureReasons] });
+  }
+
+  async findAll(): Promise<FeedbackSession[]> {
+    return this.records.map(record => ({
+      ...record,
+      failureReasons: [...record.failureReasons],
+    }));
+  }
+
+  async findBySlug(slug: string): Promise<FeedbackSession[]> {
+    return (await this.findAll()).filter(record => record.slug === slug);
+  }
+
+  async findBySlugAndVersion(
+    slug: string,
+    profileVersion: number,
+  ): Promise<FeedbackSession[]> {
+    return (await this.findAll()).filter(
+      record => record.slug === slug && record.profileVersion === profileVersion,
+    );
+  }
+}
 
 async function postFeedback(baseUrl: string, body: unknown) {
   return fetch(`${baseUrl}/api/feedback`, {
@@ -23,13 +52,13 @@ async function postFeedback(baseUrl: string, body: unknown) {
 describe('POST /api/feedback', () => {
   let server: Server;
   let baseUrl: string;
-  let store: ReturnType<typeof createFeedbackStore>;
+  let repository: TestFeedbackRepository;
 
   beforeEach(async () => {
-    store = createFeedbackStore();
+    repository = new TestFeedbackRepository();
     const rateLimiter = createRateLimiter(100, 60_000);
 
-    server = createAppServer({ store, manifestPath, rateLimiter });
+    server = createAppServer({ repository, manifestPath, rateLimiter });
 
     await new Promise<void>(resolve => {
       server.listen(0, '127.0.0.1', () => resolve());
@@ -86,10 +115,10 @@ describe('POST /api/feedback', () => {
   it('persists profileVersion alongside existing feedback fields', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'printhub-feedback-integration-'));
     const filePath = join(tempDir, 'feedback.json');
-    const fileStore = createFileFeedbackStore(filePath);
+    const fileRepository = new FileFeedbackRepository(filePath);
     const rateLimiter = createRateLimiter(100, 60_000);
     const persistenceServer = createAppServer({
-      store: fileStore,
+      repository: fileRepository,
       manifestPath,
       rateLimiter,
     });

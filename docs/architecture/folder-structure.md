@@ -330,7 +330,9 @@ server/
 ├── feedback.ts              # POST /api/feedback
 ├── manifest.ts              # Slug lookup for feedback validation
 ├── rate-limit.ts            # Sliding-window rate limiter
-├── store.ts                 # JSON file feedback store
+├── repositories/
+│   ├── feedback-repository.ts       # FeedbackRepository interface
+│   └── file-feedback-repository.ts  # JSON file implementation
 ├── validate-input.ts        # Input validation
 └── index.ts                 # Entry point and route registration
 ```
@@ -341,7 +343,7 @@ server/
 
 **`GET /combinations.json`** — Static. Not a server route. Served from CDN. The frontend fetches it once on the configure page. Changing the manifest requires a build and deploy.
 
-**`POST /api/feedback`** — Receives `{slug, outcome, failureReasons[]}`. Validates against manifest. Writes to feedback store. Returns `{ok}`. No authentication. Rate limiting applied (5 requests/minute/IP by default).
+**`POST /api/feedback`** — Receives `{slug, outcome, failureReasons[], profileVersion}`. Validates against manifest. Persists via `FeedbackRepository.save()`. Returns `{ok}`. No authentication. Rate limiting applied (5 requests/minute/IP by default).
 
 **`GET /health`** — Returns `ok`. Used for load balancer health checks.
 

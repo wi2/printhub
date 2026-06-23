@@ -12,6 +12,16 @@
 
 **V2 Sprint 5 update:** `server/analytics/` implements a pure analytics foundation. `computeProfileMetrics()`, `computeFailureMetrics()`, and `buildFeedbackReport()` aggregate feedback records by slug and `profileVersion` with no I/O, persistence, or runtime wiring. **Analytics are computed from feedback records and do not modify profiles automatically.** V3 consumes this layer via the stats API; V4 curator dashboards consume the same functions for internal reporting.
 
+**V2 Sprint 6 update:** `server/repositories/` separates business logic from storage. `FeedbackRepository` defines the persistence contract; `FileFeedbackRepository` is the current JSON file implementation. API handlers depend on the interface via constructor injection — no DI framework, no service locator. **Business logic must not depend on storage implementation details.** SQLite and PostgreSQL implementations can be added by implementing the same interface.
+
+```
+API
+ ↓
+Repository (FeedbackRepository)
+ ↓
+Storage (data/feedback.json today)
+```
+
 ---
 
 ## 1. Current Architecture (V1 MVP)
@@ -44,8 +54,11 @@ User browser
 
 Feedback API (Node.js, server/index.ts)
     → validation + rate limiting
-    → data/feedback.json          (append-only JSON file)
+    → FeedbackRepository (server/repositories/)
+    → data/feedback.json          (FileFeedbackRepository — append-only JSON file)
 ```
+
+**Business logic must not depend on storage implementation details.** Handlers call `FeedbackRepository.save()`; only `FileFeedbackRepository` reads and writes the JSON file.
 
 ### Structural Characteristics
 
@@ -153,7 +166,9 @@ Future migration approach (not implemented): detect `metadata.schemaVersion` →
 ### V3 — Feedback Read Path
 
 ```
-POST /api/feedback ─────────────────────────────────→ Feedback store (SQLite)
+POST /api/feedback ─────────────────────────────────→ FeedbackRepository
+                                                              ↓
+                                               Storage (JSON file → SQLite in V2+)
                                                               ↓
                                                server/analytics/buildFeedbackReport()   ← V2 Sprint 5
                                                               ↓
@@ -162,7 +177,7 @@ POST /api/feedback ────────────────────�
                                                ProfilePage (confidence score)
 ```
 
-The `feedback.json` append-only file is replaced by a SQLite database in V2, enabling the aggregate queries required for V3 stats.
+The repository layer (V2 Sprint 6) decouples handlers from storage. The `feedback.json` append-only file remains the storage backend until a SQLite `FeedbackRepository` implementation replaces `FileFeedbackRepository`. A future PostgreSQL implementation follows the same interface — no handler changes required.
 
 The V2 Sprint 5 analytics layer (`server/analytics/`) provides pure functions that compute:
 - Per-slug, per-version success rates (`ProfileMetrics` / `VersionMetrics`)
@@ -225,7 +240,7 @@ Approved + validated ProfileVersion → isActive: true
 |---|---|---|---|---|
 | **Profiles** | Static `.ini` / `.3mf` on CDN | Static files + canonical JSON records | Same | Same |
 | **Manifest** | `combinations.json` (static file) | Same, extended with version references | Same | Same |
-| **Feedback** | Append-only `feedback.json` | SQLite `feedback` table | SQLite + aggregation views | SQLite + training export pipeline |
+| **Feedback** | Append-only `feedback.json` via `FileFeedbackRepository` | SQLite `FeedbackRepository` implementation | SQLite + aggregation views | SQLite + training export pipeline; PostgreSQL when volume requires |
 | **Profile versions** | None | SQLite `profile_versions` table | Same | Same + `ai_candidates` table in V5 |
 | **Validation records** | `combination-validation-runbook.md` (manual doc) | SQLite `validation_records` table (new physical tests) | Same | Same |
 
