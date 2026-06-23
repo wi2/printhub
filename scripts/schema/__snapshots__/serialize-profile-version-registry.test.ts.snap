@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`serializeProfileVersionRegistry > matches snapshot for a representative registry 1`] = `
+"{
+  "bambu-a1-mini-petg-06mm-balanced": {
+    "currentVersion": 1,
+    "versions": [
+      {
+        "version": 1,
+        "slug": "bambu-a1-mini-petg-06mm-balanced",
+        "status": "active"
+      }
+    ]
+  },
+  "prusa-mk4-pla-04mm-balanced": {
+    "currentVersion": 1,
+    "versions": [
+      {
+        "version": 1,
+        "slug": "prusa-mk4-pla-04mm-balanced",
+        "status": "active"
+      }
+    ]
+  }
+}
+"
+`;

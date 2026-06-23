@@ -100,8 +100,9 @@ Orchestrates the full generation run:
 2. For each launch combination (20 at MVP): load printer, material, goal, nozzle, and optional override layers
 3. Resolve → validate → build canonical JSON profile → serialize
 4. Write profile files to `generated/profiles/` (JSON + slicer-native). Filenames and manifest slugs come from `canonical.metadata.slug`, constructed via the shared `src/lib/slug.ts` utility.
-5. Write `generated/combinations.json` manifest (slug, metadata, download path, highlights)
-6. Copy artifacts to `public/` via `publish-generated.ts` for Vite dev and production builds
+5. Build Profile Version Registry → write `generated/profile-versions/index.json` (informational only; not published to `public/`)
+6. Write `generated/combinations.json` manifest (slug, metadata, download path, highlights)
+7. Copy artifacts to `public/` via `publish-generated.ts` for Vite dev and production builds
 
 Triggered by `npm run build:profiles` and automatically before `npm run build` via the `prebuild` hook.
 
@@ -144,6 +145,8 @@ Build Canonical JSON Profile
         ↓
 Serialize Profile (.ini / .3mf)
         ↓
+Build Profile Version Registry
+        ↓
 Generate Manifest
         ↓
 Frontend Consumption
@@ -154,6 +157,8 @@ Frontend Consumption
 ```
 generated/
   combinations.json          ← manifest (slug, metadata, downloadPath, highlights)
+  profile-versions/
+    index.json               ← build-time version registry (not served to users)
   profiles/
     [slug].json              ← canonical JSON profile (slicer-agnostic, build artifact)
     prusaslicer/[slug].ini
@@ -257,7 +262,7 @@ This document describes the V1 (MVP) architecture. The following planned changes
 
 | Phase | Change | Reference |
 |---|---|---|
-| **V2** | Feedback submissions linked to profile version via `profileVersion`; queryable `ProfileVersion` records and SQLite migration remain future work | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
+| **V2** | Feedback submissions linked to profile version via `profileVersion`; build-time Profile Version Registry at `generated/profile-versions/index.json`; queryable `ProfileVersion` records and SQLite migration remain future work | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [future-architecture.md](../architecture/future-architecture.md) |
 | **V2–V3** | Stats API (`GET /api/profile/:slug/stats`) implemented; confidence scoring added to `ProfilePage` | [backlog.md V3 stories](./backlog.md) |
 | **V4–V5** | Parameter comparison, rule-based suggestions, AI recommendation pipeline — all with mandatory human review | [roadmap-v2-v5.md](./roadmap-v2-v5.md) |
 

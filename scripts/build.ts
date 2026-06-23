@@ -14,6 +14,8 @@
  * Output structure:
  *   generated/
  *     combinations.json               — manifest consumed by the frontend
+ *     profile-versions/
+ *       index.json                    — build-time registry of profile versions per slug
  *     profiles/
  *       [slug].json                   — canonical JSON profile (slicer-agnostic)
  *       prusaslicer/[slug].ini        — for Prusa MK4 and Creality Ender 3 V3 SE
@@ -28,7 +30,10 @@ import { validate } from './engine/validate.js';
 import { serialize as serializePrusaSlicer } from './serializers/prusaslicer.js';
 import { serialize as serializeBambuOrca } from './serializers/bambu-orca.js';
 import { buildCanonicalProfile } from './schema/build-canonical-profile.js';
+import { buildProfileVersionRegistry } from './schema/build-profile-version-registry.js';
 import { serializeCanonicalProfileToJson } from './schema/serialize-canonical-profile.js';
+import { serializeProfileVersionRegistry } from './schema/serialize-profile-version-registry.js';
+import type { CanonicalProfile } from './schema/canonical-profile.js';
 import { publishGeneratedToPublic } from './publish-generated.js';
 import type { LayerSchema, GuardrailBounds } from './engine/types.js';
 import { PRINTERS } from '../src/types.js';
@@ -46,6 +51,7 @@ const GENERATED_DIR = resolve(ROOT, 'generated');
 const PROFILES_DIR = resolve(GENERATED_DIR, 'profiles');
 const PRUSASLICER_DIR = resolve(PROFILES_DIR, 'prusaslicer');
 const BAMBU_ORCA_DIR = resolve(PROFILES_DIR, 'bambu-orca');
+const PROFILE_VERSIONS_DIR = resolve(GENERATED_DIR, 'profile-versions');
 
 // ---------------------------------------------------------------------------
 // Launch combinations — 20 combinations per epic-mvp.md scope challenge Cut 4.
@@ -108,6 +114,7 @@ function ensureDir(dir: string): void {
 
 function run(): void {
   ensureDir(GENERATED_DIR);
+  ensureDir(PROFILE_VERSIONS_DIR);
   ensureDir(PRUSASLICER_DIR);
   ensureDir(BAMBU_ORCA_DIR);
 
@@ -118,6 +125,7 @@ function run(): void {
   ) as GuardrailBounds;
 
   const manifest: ManifestEntry[] = [];
+  const canonicalProfiles: CanonicalProfile[] = [];
   let built = 0;
   let skipped = 0;
 
@@ -168,6 +176,7 @@ function run(): void {
       spec.goal,
       resolved,
     );
+    canonicalProfiles.push(canonical);
     const canonicalSlug = canonical.metadata.slug;
 
     const jsonPath = join(PROFILES_DIR, `${canonicalSlug}.json`);
@@ -210,6 +219,10 @@ function run(): void {
     built++;
   }
 
+  const registry = buildProfileVersionRegistry(canonicalProfiles);
+  const registryPath = join(PROFILE_VERSIONS_DIR, 'index.json');
+  writeFileSync(registryPath, serializeProfileVersionRegistry(registry), 'utf-8');
+
   // Write manifest.
   const manifestPath = join(GENERATED_DIR, 'combinations.json');
   writeFileSync(manifestPath, JSON.stringify({ combinations: manifest }, null, 2), 'utf-8');
@@ -218,6 +231,7 @@ function run(): void {
 
   console.log(`\nBuild complete: ${built} built, ${skipped} skipped (guardrail violations).`);
   console.log(`Manifest: ${manifestPath}`);
+  console.log(`Profile version registry: ${registryPath}`);
   console.log(`Published static assets to public/ for Vite dev and production builds.`);
 
   if (skipped > 0) {

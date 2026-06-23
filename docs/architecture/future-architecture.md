@@ -8,6 +8,8 @@
 
 **V2 Sprint 1 update:** Profile version identity is now embedded in canonical JSON (`metadata.version: 1`). Build artifacts at `generated/profiles/[slug].json` include this field. Version history persistence, feedback linkage, and profile comparison remain planned for subsequent V2 stories.
 
+**V2 Sprint 3 update:** The build pipeline generates `generated/profile-versions/index.json` — a deterministic Profile Version Registry. Each slug entry lists versions with `status: active` and a `currentVersion` pointer. This registry aligns with `Feedback.profileVersion` (same integer identity) and prepares for future version history, comparison tooling, analytics, and validation workflows. Registry is informational only at V2-S3 and does not yet provide version history management.
+
 ---
 
 ## 1. Current Architecture (V1 MVP)
@@ -66,11 +68,12 @@ layers/*.yaml
     →   scripts/serializers/prusaslicer.ts  → .ini
     →   scripts/serializers/bambu-orca.ts   → .3mf
     → generated/profiles/[slug].json   ← build artifact (not yet served to users)
+    → generated/profile-versions/index.json   ← build-time version registry (V2 Sprint 3)
     → generated/profiles/ + generated/combinations.json
     → public/
 ```
 
-### V2 Build Pipeline (planned)
+### V2 Build Pipeline (planned — partial)
 
 ```
 layers/*.yaml
@@ -78,10 +81,13 @@ layers/*.yaml
     → Canonical JSON profile           ← new intermediate artifact (ADR-004)
     →   scripts/serializers/prusaslicer.ts  → .ini
     →   scripts/serializers/bambu-orca.ts   → .3mf
-    → ProfileVersion record persisted to store
+    → Profile Version Registry (generated/profile-versions/index.json)   ← V2 Sprint 3
+    → ProfileVersion record persisted to store   ← future
     → generated/profiles/ + generated/combinations.json
     → public/
 ```
+
+Registry is informational only at V2-S3 and does not yet provide version history management.
 
 ### Canonical JSON Profile — Current Shape (M6 + V2 Sprint 1)
 
