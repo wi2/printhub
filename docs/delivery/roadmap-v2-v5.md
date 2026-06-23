@@ -52,8 +52,9 @@ Give every profile a stable identity and a history. Link user feedback to the ex
 6. **Feedback linkage** — every feedback submission references the profile version (`metadata.version`) that was active when the profile was viewed — **implemented (V2 Sprint 2 foundation)**
 7. **Feedback analytics foundation** — pure aggregation layer computes per-profile and per-version success rates and failure reason breakdowns from feedback records — **implemented (V2 Sprint 5 foundation)**
 8. **Feedback repository abstraction** — persistence logic separated from business logic via `FeedbackRepository` interface; file implementation unchanged — **implemented (V2 Sprint 6 foundation)**
-9. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
-10. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
+9. **SQLite feedback repository** — optional SQLite backend behind the same `FeedbackRepository` interface; selectable via `FEEDBACK_STORE` — **implemented (V2 Sprint 7 foundation)**
+10. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
+11. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
 
 ### Architecture Changes Required
 
@@ -84,12 +85,14 @@ Layered YAML
 
 **V2 Sprint 6 note:** `server/repositories/` introduces a `FeedbackRepository` interface and `FileFeedbackRepository` implementation. All feedback persistence logic lives behind the repository; API handlers depend on the interface, not file I/O. The JSON file format, validation flow, and API contract are unchanged. **Business logic must not depend on storage implementation details.** This prepares for SQLite (V2+) and PostgreSQL (future) without changing handler code.
 
+**V2 Sprint 7 note:** `SqliteFeedbackRepository` implements the same `FeedbackRepository` interface using `better-sqlite3` — no ORM. The composition root selects storage via `FEEDBACK_STORE=file|sqlite` (default `file`). A one-way migration utility copies existing JSON records into SQLite idempotently. **SQLite is an implementation detail behind FeedbackRepository.** API contracts, analytics, and the feedback schema are unchanged.
+
 ```
 API
  ↓
 Repository (FeedbackRepository)
  ↓
-Storage (data/feedback.json — FileFeedbackRepository today)
+Storage (data/feedback.json — FileFeedbackRepository, or data/feedback.db — SqliteFeedbackRepository)
 ```
 
 ### Dependencies
@@ -119,6 +122,7 @@ Storage (data/feedback.json — FileFeedbackRepository today)
 - 100% of post-V2 Sprint 2 feedback submissions include `profileVersion` linked to `metadata.version`
 - Analytics aggregation produces deterministic per-slug, per-version success rates from feedback records — **met at V2 Sprint 5**
 - Feedback persistence is behind a `FeedbackRepository` abstraction with no handler-level file I/O — **met at V2 Sprint 6**
+- SQLite feedback store available as an opt-in backend via `FEEDBACK_STORE=sqlite` — **met at V2 Sprint 7**
 - Profile authors can view a parameter diff between any two versions of a combination
 - Zero serializer regressions in the ARCH-4 conformance suite
 
@@ -143,7 +147,7 @@ Accumulate enough real-world outcome data to compute meaningful success rates pe
 V3 adds a read path to the V2 feedback store, consuming the V2 Sprint 5 analytics layer:
 
 ```
-POST /api/feedback → FeedbackRepository → Storage (JSON file today; SQLite in V2+)
+POST /api/feedback → FeedbackRepository → Storage (JSON file or SQLite via FEEDBACK_STORE)
                           ↓
                    server/analytics/buildFeedbackReport()   ← V2 Sprint 5 (pure functions)
                           ↓ (scheduled or on-demand at V3)

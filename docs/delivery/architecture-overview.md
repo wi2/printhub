@@ -219,11 +219,13 @@ Served from `public/` after `build:profiles`. The manifest is the single source 
 - **Payload:** `{ slug, outcome, profileVersion, failureReasons? }` where outcome is `success`, `failure`, or `pending` and `profileVersion` is a positive integer matching `metadata.version` from the canonical JSON profile
 - **Response:** `{ ok: true }` on success
 
-### JSON feedback store
+### Feedback store
 
-- **Location:** `data/feedback.json` (configurable via `FEEDBACK_STORE_PATH`)
-- **Implementation:** `FileFeedbackRepository` in `server/repositories/` — append-only JSON file
-- **Rationale:** Zero dependency overhead at MVP launch volume; swap repository implementation for SQLite when query volume or concurrent writes require it
+- **Default:** `data/feedback.json` via `FileFeedbackRepository` (configurable via `FEEDBACK_STORE_PATH`)
+- **Optional:** `data/feedback.db` via `SqliteFeedbackRepository` when `FEEDBACK_STORE=sqlite`
+- **Selection:** Composition root in `server/repositories/create-feedback-repository.ts`
+- **Rationale:** JSON file for zero dependency overhead at launch; SQLite (`better-sqlite3`, no ORM) for V3 aggregate queries. **SQLite is an implementation detail behind FeedbackRepository.**
+- **Migration:** `npm run migrate:feedback-to-sqlite` copies JSON records to SQLite idempotently
 
 The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are deferred post-launch. Profile pages show a static placeholder: "New profile — be the first to report results."
 
@@ -238,7 +240,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 | **Pre-generated profiles** | Profiles are build-time artifacts, not runtime computations. Deterministic, auditable, and safe to cache on CDN. | `scripts/build.ts` |
 | **Guardrail validation** | Four critical parameters checked against material/printer-specific bounds before a combination enters the manifest. Failed combinations are skipped, not shipped. | `scripts/engine/validate.ts` |
 | **Deferred physical validation** | M5 engineering is complete; launch profiles pass automated validation only (`THEORETICALLY_VALID`). Real-hardware test prints (`PHYSICALLY_VALIDATED`) are deferred until printer access is available. | [ADR-003](../decisions/adr-003-deferred-physical-validation.md) |
-| **No database for MVP** | Manifest is a static JSON file; feedback is a JSON file store behind `FeedbackRepository`. No Postgres, SQLite, or Redis at launch. | `server/repositories/file-feedback-repository.ts` |
+| **No database for MVP** | Manifest is a static JSON file; feedback defaults to JSON file store behind `FeedbackRepository`. SQLite is opt-in via `FEEDBACK_STORE=sqlite`. | `server/repositories/` |
 | **JSON as canonical profile format** | A typed JSON document sits between the resolver output and the serializers (M6). Serializers consume `CanonicalProfile`; slicer-native formats are outputs only. Enables V2+ versioning, feedback linkage, and optimization. | [ADR-004](../decisions/adr-004-json-as-canonical-profile-format.md), [canonical-profile-model.md](../architecture/canonical-profile-model.md) |
 
 ---
@@ -247,7 +249,7 @@ The stats endpoint (`GET /api/profile/:slug/stats`) and confidence count UI are 
 
 | Limitation | Impact | Mitigation path |
 |---|---|---|
-| **File-based feedback storage** | No concurrent write safety at scale; no query API for analytics | Swap `FileFeedbackRepository` for SQLite implementation when volume requires it |
+| **File-based feedback storage (default)** | No concurrent write safety at scale; no query API for analytics | Set `FEEDBACK_STORE=sqlite` and run `npm run migrate:feedback-to-sqlite` |
 | **Quality goal not yet available** | Only Balanced goal is in the launch manifest (20 combinations). Quality layer exists but is not built or validated. | Add to build list after physical validation |
 | **Physical validation deferred** | Engineering is complete (M1–M5); all 20 launch combinations are `THEORETICALLY_VALID` only. Launch is blocked until physical test prints pass (PV-1, PV-2; originally S-5.4, S-5.5) | [ADR-003](../decisions/adr-003-deferred-physical-validation.md), [combination-validation-runbook.md](./combination-validation-runbook.md) |
 | **CSR — no SEO on profile pages** | Profile content not in initial HTML; search engines that do not execute JS will not index highlights | Revisit SSG (e.g. `vite-ssg`) before Phase 1 scale |

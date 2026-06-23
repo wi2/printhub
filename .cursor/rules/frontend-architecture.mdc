@@ -190,6 +190,16 @@ Two runtime API routes exist at MVP (plus a health check):
 
 **There is no `/api/generate` endpoint at MVP.** Slug construction happens client-side in `CombinationForm`. The slug is deterministic: `[printer]-[material]-[nozzle]-[goal]`. The form validates against the manifest client-side before navigating.
 
+### Server feedback persistence (not frontend concern)
+
+Feedback is persisted server-side via `FeedbackRepository`. The frontend POSTs to `/api/feedback` and does not know which storage backend is active.
+
+| Env var | Values | Default |
+|---|---|---|
+| `FEEDBACK_STORE` | `file`, `sqlite` | `file` |
+
+Swap strategy: implement `FeedbackRepository`, wire in `create-feedback-repository.ts`. **SQLite is an implementation detail behind FeedbackRepository.** No handler or frontend changes required.
+
 ---
 
 ## Component Organization

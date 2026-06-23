@@ -162,17 +162,21 @@ Records a user-submitted print outcome for a specific download event.
 
 **V2 Sprint 2 shape (current):** `{ slug, outcome, failureReasons, profileVersion, submittedAt }` stored as JSON in `data/feedback.json`. `profileVersion` links each submission to the canonical profile revision active at submit time.
 
-**V2 Sprint 6 (current persistence layer):** Feedback records are persisted through `FeedbackRepository` (`server/repositories/feedback-repository.ts`). `FileFeedbackRepository` is the only component that reads or writes `data/feedback.json`. API handlers and analytics depend on the repository interface, not file I/O. **Business logic must not depend on storage implementation details.**
+**V2 Sprint 6 (current persistence layer):** Feedback records are persisted through `FeedbackRepository` (`server/repositories/feedback-repository.ts`). `FileFeedbackRepository` reads and writes `data/feedback.json`. API handlers and analytics depend on the repository interface, not file I/O. **Business logic must not depend on storage implementation details.**
+
+**V2 Sprint 7 (SQLite option):** `SqliteFeedbackRepository` implements the same interface using `better-sqlite3` — no ORM, no migrations framework. Storage is selected at the composition root via `FEEDBACK_STORE=file|sqlite` (default `file`). **SQLite is an implementation detail behind FeedbackRepository.** The feedback schema and API contract are unchanged.
 
 ```
 API (POST /api/feedback)
  ↓
 FeedbackRepository.save()
  ↓
-Storage (data/feedback.json)
+Storage (data/feedback.json or data/feedback.db)
 ```
 
-**Future V2+ change:** A `SqliteFeedbackRepository` implements the same `FeedbackRepository` interface. Existing `feedback.json` records are imported with `generationId: undefined` and `profileVersionId: undefined` to preserve history.
+**Why SQLite:** Single-file embedded database with SQL aggregate query support for V3 stats, zero operational overhead vs. the JSON file approach, and `better-sqlite3` provides synchronous access without an ORM. See ADR-005.
+
+**Migration from JSON to SQLite:** Run `npm run migrate:feedback-to-sqlite` once before switching `FEEDBACK_STORE=sqlite`. The utility is idempotent and safe to rerun.
 
 **Analytics relationship (V2 Sprint 5 foundation):** Each `Feedback` record's `profileVersion` field links the outcome to the canonical profile revision active at submit time. The analytics layer (`server/analytics/`) reads an array of feedback records and produces `ProfileMetrics` grouped by slug and version, plus `FailureReasonMetrics` for failure reason breakdowns. This enables V3 confidence scoring per combination and V4 parameter impact analysis without modifying profile artifacts. **Analytics are computed from feedback records and do not modify profiles automatically.**
 

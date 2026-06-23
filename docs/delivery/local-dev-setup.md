@@ -80,6 +80,7 @@ npm run build:profiles
 npm run typecheck
 npm run test
 npm run test:e2e
+npm run migrate:feedback-to-sqlite
 ```
 
 ---
@@ -133,3 +134,29 @@ npm run build
 ## Environment
 
 No environment variables required for MVP.
+
+### Feedback storage (optional)
+
+Feedback persistence defaults to a JSON file. SQLite is available as an opt-in backend.
+
+| Variable | Values | Default | Purpose |
+|---|---|---|---|
+| `FEEDBACK_STORE` | `file`, `sqlite` | `file` | Select feedback repository backend |
+| `FEEDBACK_STORE_PATH` | path | `data/feedback.json` | JSON file location (when `FEEDBACK_STORE=file`) |
+| `FEEDBACK_SQLITE_PATH` | path | `data/feedback.db` | SQLite database location (when `FEEDBACK_STORE=sqlite`) |
+
+**SQLite is an implementation detail behind FeedbackRepository.** API handlers and analytics depend on the interface only.
+
+Run the API with SQLite:
+
+```bash
+FEEDBACK_STORE=sqlite npm run dev:server
+```
+
+Migrate existing JSON feedback records to SQLite (idempotent, safe to rerun):
+
+```bash
+npm run migrate:feedback-to-sqlite
+```
+
+Then set `FEEDBACK_STORE=sqlite` to use the migrated database.

@@ -331,8 +331,10 @@ server/
 ├── manifest.ts              # Slug lookup for feedback validation
 ├── rate-limit.ts            # Sliding-window rate limiter
 ├── repositories/
-│   ├── feedback-repository.ts       # FeedbackRepository interface
-│   └── file-feedback-repository.ts  # JSON file implementation
+│   ├── feedback-repository.ts        # FeedbackRepository interface
+│   ├── file-feedback-repository.ts   # JSON file implementation
+│   ├── sqlite-feedback-repository.ts # SQLite implementation (better-sqlite3)
+│   └── create-feedback-repository.ts # FEEDBACK_STORE selection
 ├── validate-input.ts        # Input validation
 └── index.ts                 # Entry point and route registration
 ```

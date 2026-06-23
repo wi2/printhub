@@ -4,26 +4,19 @@ import { fileURLToPath } from 'node:url';
 import { createFeedbackHandler } from './feedback.js';
 import { createManifestLookup, resolveManifestPath } from './manifest.js';
 import { createRateLimiter, type RateLimiter } from './rate-limit.js';
+import { createFeedbackRepository } from './repositories/create-feedback-repository.js';
 import type { FeedbackRepository } from './repositories/feedback-repository.js';
-import {
-  FileFeedbackRepository,
-  resolveFeedbackStorePath,
-} from './repositories/file-feedback-repository.js';
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
  * PrintHub runtime API server entry point.
  *
- * Feedback persistence: JSON file at data/feedback.json via FileFeedbackRepository.
- * Chosen over SQLite or Postgres for zero dependency overhead at MVP — a single
- * append-only JSON file satisfies durable storage for launch volume. Swap
- * FileFeedbackRepository for a SQLite implementation when query volume or
- * concurrent writes require it.
+ * Feedback persistence is selected via FEEDBACK_STORE (file | sqlite; default file).
+ * SQLite is an implementation detail behind FeedbackRepository — handlers depend
+ * on the interface only. Set FEEDBACK_STORE=sqlite to use data/feedback.db.
  */
-export const feedbackRepository = new FileFeedbackRepository(
-  process.env.FEEDBACK_STORE_PATH ?? resolveFeedbackStorePath(projectRoot),
-);
+export const feedbackRepository = createFeedbackRepository(projectRoot);
 
 export type AppServerOptions = {
   repository?: FeedbackRepository;

@@ -88,15 +88,18 @@ nvm use
 | Variable | Default | Used by | Purpose |
 |---|---|---|---|
 | `PORT` | `3001` | API server | Listen port for `server/index.ts` |
-| `FEEDBACK_STORE_PATH` | `<project>/data/feedback.json` | API server | Absolute path to feedback JSON store |
+| `FEEDBACK_STORE` | `file` | API server | Feedback backend: `file` or `sqlite` |
+| `FEEDBACK_STORE_PATH` | `<project>/data/feedback.json` | API server | JSON file path when `FEEDBACK_STORE=file` |
+| `FEEDBACK_SQLITE_PATH` | `<project>/data/feedback.db` | API server | SQLite database path when `FEEDBACK_STORE=sqlite` |
 | `CI` | unset | Playwright | Set to `true` in CI to disable webServer reuse |
 
 No environment variables are required for the static frontend build.
 
 **Production recommendations:**
 
-- Set `FEEDBACK_STORE_PATH` to a path on persistent storage (not inside the deploy artifact directory).
-- Do not commit `data/feedback.json` — it is runtime state.
+- Set `FEEDBACK_STORE_PATH` or `FEEDBACK_SQLITE_PATH` to a path on persistent storage (not inside the deploy artifact directory).
+- Run `npm run migrate:feedback-to-sqlite` before switching from `file` to `sqlite`.
+- Do not commit `data/` — it is runtime state.
 
 ---
 

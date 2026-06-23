@@ -7,6 +7,7 @@ import type { Server } from 'node:http';
 import { createAppServer } from '../../server/index.js';
 import { createRateLimiter } from '../../server/rate-limit.js';
 import { FileFeedbackRepository } from '../../server/repositories/file-feedback-repository.js';
+import { SqliteFeedbackRepository } from '../../server/repositories/sqlite-feedback-repository.js';
 import type { FeedbackRepository } from '../../server/repositories/feedback-repository.js';
 import type { FeedbackSession } from '../../src/types.js';
 
@@ -145,6 +146,56 @@ describe('POST /api/feedback', () => {
       expect(response.status).toBe(200);
 
       const records = JSON.parse(readFileSync(filePath, 'utf-8')) as FeedbackSession[];
+      expect(records).toHaveLength(1);
+      expect(records[0]).toMatchObject({
+        slug: 'bambu-a1-mini-pla-04mm-balanced',
+        outcome: 'failure',
+        failureReasons: ['Stringing or oozing'],
+        profileVersion: PROFILE_VERSION,
+      });
+      expect(records[0]?.submittedAt).toBeDefined();
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        persistenceServer.close(error => (error ? reject(error) : resolve()));
+      });
+      rmSync(tempDir, { recursive: true });
+    }
+  });
+
+  it('persists feedback through the SQLite repository without changing API behavior', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'printhub-feedback-sqlite-integration-'));
+    const dbPath = join(tempDir, 'feedback.db');
+    const sqliteRepository = new SqliteFeedbackRepository(dbPath);
+    const rateLimiter = createRateLimiter(100, 60_000);
+    const persistenceServer = createAppServer({
+      repository: sqliteRepository,
+      manifestPath,
+      rateLimiter,
+    });
+
+    await new Promise<void>(resolve => {
+      persistenceServer.listen(0, '127.0.0.1', () => resolve());
+    });
+
+    const address = persistenceServer.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Expected server to listen on a TCP port');
+    }
+
+    const persistenceBaseUrl = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const response = await postFeedback(persistenceBaseUrl, {
+        slug: 'bambu-a1-mini-pla-04mm-balanced',
+        outcome: 'failure',
+        profileVersion: PROFILE_VERSION,
+        failureReasons: ['Stringing or oozing'],
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+
+      const records = await sqliteRepository.findAll();
       expect(records).toHaveLength(1);
       expect(records[0]).toMatchObject({
         slug: 'bambu-a1-mini-pla-04mm-balanced',
