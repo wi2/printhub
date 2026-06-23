@@ -23,6 +23,9 @@ This change is internal. The user-facing application, manifest schema, and downl
 | Type definitions | Build pipeline | `scripts/schema/canonical-profile.ts` |
 | Profile construction | Pure builder function | `scripts/schema/build-canonical-profile.ts` |
 | JSON serialization | Build pipeline | `scripts/schema/serialize-canonical-profile.ts` |
+| Parameter completeness | Single source of truth | `scripts/schema/canonical-parameters.ts` |
+| Runtime validation | Pure validator | `scripts/schema/validate-canonical-profile.ts` |
+| JSON parsing | Pure parser | `scripts/schema/parse-canonical-profile.ts` |
 | Slicer output | Serializers | `scripts/serializers/` |
 | Parameter namespace | Domain schema | `docs/architecture/parameter-schema.md` |
 | Material physical properties | Shared mapping | `scripts/material-properties.ts` (filament density for serializers) |
@@ -44,6 +47,37 @@ layers/*.yaml
     → generated/combinations.json     (manifest — unchanged)
     → public/                           (copied for CDN / Vite)
 ```
+
+### Validation lifecycle (V2 Sprint 4)
+
+Any consumer that reads a canonical JSON artifact must validate before use:
+
+```
+generated/profiles/[slug].json
+    → parseCanonicalProfile(json)       (JSON.parse + validateCanonicalProfile)
+    → CanonicalProfile                  (typed, safe for serializers / V3+ workflows)
+```
+
+`validateCanonicalProfile(profile: unknown)` accepts parsed JSON and throws descriptive errors on structural failure. `parseCanonicalProfile(json: string)` wraps JSON parsing and delegates to the validator. Both are pure functions with no filesystem access.
+
+**Validation guarantees structural correctness only. It does not validate print quality or physical suitability.** Guardrail bounds are checked at build time by `scripts/engine/validate.ts`; runtime validation enforces document shape, schema version, metadata integrity, and parameter completeness.
+
+### Parsing lifecycle
+
+1. Read JSON string from disk, API response, or in-memory buffer.
+2. Call `parseCanonicalProfile(json)`.
+3. On success, use the returned `CanonicalProfile` for serialization, diffing, or persistence.
+4. On failure, surface the error message — do not attempt to repair or coerce invalid values.
+
+### Schema version governance
+
+`SUPPORTED_SCHEMA_VERSION` (currently `"1.0"`) is defined in `scripts/schema/canonical-profile.ts`. Validation rejects any profile whose `metadata.schemaVersion` does not match this constant.
+
+When the document shape changes:
+
+1. Bump `SUPPORTED_SCHEMA_VERSION` in the same change set as the type and parameter schema updates.
+2. Add a migration function in a dedicated story — migrations are not implemented at V2 Sprint 4.
+3. Migration strategy (future): read artifact → detect schema version → apply version-specific transform → validate against current schema. Downstream consumers always receive a profile validated against the current `SUPPORTED_SCHEMA_VERSION`.
 
 At M6:
 
@@ -81,10 +115,11 @@ At M6:
 
 | Field | Type | Notes |
 |---|---|---|
-| `metadata.schemaVersion` | `"1.0"` | Required from day one per ADR-004. Bump when the shape changes. |
-| `metadata.slug` | `string` | Deterministic combination identifier |
+| `metadata.schemaVersion` | `"1.0"` | Required from day one per ADR-004. Must match `SUPPORTED_SCHEMA_VERSION`. Bump when the shape changes. |
+| `metadata.version` | `number` | Profile revision for feedback linkage. Positive integer, starts at 1. |
+| `metadata.slug` | `string` | Deterministic combination identifier; must match `buildSlug(combination)` |
 | `metadata.combination` | object | Printer, material, nozzle, goal IDs |
-| `parameters` | object | Full 34-parameter resolved set (`ResolvedParams` shape) |
+| `parameters` | object | Full 34-parameter resolved set — keys and types defined in `scripts/schema/canonical-parameters.ts` |
 
 ### Fields deliberately omitted at M6
 

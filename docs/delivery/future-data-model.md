@@ -112,6 +112,8 @@ Represents a specific set of resolved parameters for a Profile at a point in tim
 
 **Profile Version Registry (V2 Sprint 3 foundation):** At build time, `generated/profile-versions/index.json` indexes each slug's versions and `currentVersion`. Each registry entry maps to the in-artifact `metadata.version` field. The registry is the build-time counterpart to `Feedback.profileVersion` — both reference the same version integer. Registry is informational only at V2-S3 and does not yet provide version history management. Future validation workflow will attach `ValidationRecord` evidence to specific `ProfileVersion` entries when physical testing upgrades status beyond `THEORETICALLY_VALID`.
 
+**Canonical validation (V2 Sprint 4 foundation):** `scripts/schema/canonical-parameters.ts` defines the 34 required parameter keys and their primitive types. `validateCanonicalProfile()` and `parseCanonicalProfile()` enforce structural correctness before any consumer uses a canonical JSON artifact. Validation checks metadata presence, schema version (`SUPPORTED_SCHEMA_VERSION`), version integer, slug/combination consistency, and parameter completeness (no missing keys, no unknown keys, correct types). **Validation guarantees structural correctness only. It does not validate print quality or physical suitability.** Future schema migrations will transform older artifacts to the current schema before validation — not implemented at V2 Sprint 4.
+
 **Why `layerSources` matters:** In V4, parameter impact analysis needs to know which layer was responsible for a given parameter value. If `printSpeed` changes between versions and outcomes improve, knowing that the printer layer drove that change (not the goal layer) narrows the investigation.
 
 ---

@@ -120,14 +120,29 @@ See [canonical-profile-model.md](./canonical-profile-model.md) for the authorita
 
 Fields such as `layerSources`, `validationStatus`, and `generatedAt` are planned for later V2 stories but intentionally omitted.
 
+### Canonical Profile Validation (V2 Sprint 4)
+
+Runtime validation and parsing modules ensure any canonical JSON artifact can be safely loaded before use:
+
+| Module | Location | Responsibility |
+|---|---|---|
+| Parameter schema | `scripts/schema/canonical-parameters.ts` | Single source of truth for 34 required keys and primitive types |
+| Validator | `scripts/schema/validate-canonical-profile.ts` | `validateCanonicalProfile(unknown): CanonicalProfile` |
+| Parser | `scripts/schema/parse-canonical-profile.ts` | `parseCanonicalProfile(string): CanonicalProfile` |
+| Schema version guard | `SUPPORTED_SCHEMA_VERSION` in `canonical-profile.ts` | Rejects unsupported `metadata.schemaVersion` values |
+
+**Validation guarantees structural correctness only. It does not validate print quality or physical suitability.**
+
+Future migration approach (not implemented): detect `metadata.schemaVersion` → apply version-specific transform → validate against current `SUPPORTED_SCHEMA_VERSION`. Migrations land in dedicated stories when the schema bumps.
+
 ### What the Serializers Receive
 
-| | Pre-M6 (V1) | Post-M6 (current) | V2 Sprint 1 | V2 (planned) |
-|---|---|---|---|---|
-| **Input type** | Untyped `ResolvedParams` from resolver | Typed `CanonicalProfile` | Same | Same + version metadata in store |
-| **Source of truth** | Implicit in the merge stack | Explicit JSON record with `schemaVersion` | Same + `metadata.version` field | Versioned `ProfileVersion` records |
-| **Testable?** | Indirectly via build output snapshots | Directly via canonical profile tests + serializer snapshots | Same | ARCH-3 round-trip tests |
-| **Versionable?** | No | Schema version field only | Profile version identity (`metadata.version: 1`) | Full version history per combination |
+| | Pre-M6 (V1) | Post-M6 (current) | V2 Sprint 1 | V2 Sprint 4 | V2 (planned) |
+|---|---|---|---|---|---|
+| **Input type** | Untyped `ResolvedParams` from resolver | Typed `CanonicalProfile` | Same | Same + runtime validation on read | Same + version metadata in store |
+| **Source of truth** | Implicit in the merge stack | Explicit JSON record with `schemaVersion` | Same + `metadata.version` field | Same + parameter completeness enforced | Versioned `ProfileVersion` records |
+| **Testable?** | Indirectly via build output snapshots | Directly via canonical profile tests + serializer snapshots | Same | Validator + parser unit tests | ARCH-3 round-trip tests |
+| **Versionable?** | No | Schema version field only | Profile version identity (`metadata.version: 1`) | Schema version guard enforced at read time | Full version history per combination |
 
 ---
 

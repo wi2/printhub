@@ -47,10 +47,11 @@ Give every profile a stable identity and a history. Link user feedback to the ex
 1. **Canonical JSON as the intermediate format** — every resolved profile exists as a typed, versioned JSON document before serialization (ARCH-1, ARCH-2 from backlog; required by ADR-004) — **implemented at M6**
 2. **Profile version identity** — each canonical JSON profile carries a `metadata.version` field (integer, starts at 1); deterministic, no timestamps — **implemented (V2 Sprint 1)**
 3. **Profile version registry** — build-time `generated/profile-versions/index.json` indexes each slug's versions and `currentVersion`; informational only at V2 Sprint 3 — **implemented (V2 Sprint 3 foundation)**
-4. **Profile versioning** — each time a combination's parameters change, a new `ProfileVersion` is created; old versions are preserved and queryable — **not yet implemented**
-5. **Feedback linkage** — every feedback submission references the profile version (`metadata.version`) that was active when the profile was viewed — **implemented (V2 Sprint 2 foundation)**
-6. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
-7. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
+4. **Canonical profile validation** — runtime validator and parser guarantee structural correctness of canonical JSON artifacts; parameter completeness enforced via single source of truth — **implemented (V2 Sprint 4 foundation)**
+5. **Profile versioning** — each time a combination's parameters change, a new `ProfileVersion` is created; old versions are preserved and queryable — **not yet implemented**
+6. **Feedback linkage** — every feedback submission references the profile version (`metadata.version`) that was active when the profile was viewed — **implemented (V2 Sprint 2 foundation)**
+7. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
+8. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
 
 ### Architecture Changes Required
 
@@ -75,6 +76,8 @@ Layered YAML
 
 **V2 Sprint 3 note:** The Profile Version Registry is generated at build time and is informational only. It does not yet provide version history management, SQLite persistence, or runtime consumption. Registry is informational only at V2-S3 and does not yet provide version history management.
 
+**V2 Sprint 4 note:** `validateCanonicalProfile()` and `parseCanonicalProfile()` provide a pure validation and parsing layer for canonical JSON artifacts. `SUPPORTED_SCHEMA_VERSION` (`"1.0"`) is enforced at read time. Required parameter keys and types live in `scripts/schema/canonical-parameters.ts`. Schema migrations are documented but not implemented. **Validation guarantees structural correctness only. It does not validate print quality or physical suitability.**
+
 ### Dependencies
 
 | Dependency | Tracks |
@@ -98,6 +101,7 @@ Layered YAML
 - 100% of V2+ profiles have a canonical JSON record with a `schemaVersion` field — **met at M6**
 - 100% of V2+ profiles have a `metadata.version` field — **met at V2 Sprint 1**
 - 100% of launch profiles appear in `generated/profile-versions/index.json` with `currentVersion` and `status: active` — **met at V2 Sprint 3**
+- 100% of canonical JSON artifacts pass `validateCanonicalProfile()` when parsed — **enforced by V2 Sprint 4 validator tests; build pipeline unchanged**
 - 100% of post-V2 Sprint 2 feedback submissions include `profileVersion` linked to `metadata.version`
 - Profile authors can view a parameter diff between any two versions of a combination
 - Zero serializer regressions in the ARCH-4 conformance suite

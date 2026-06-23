@@ -12,8 +12,14 @@
 
 import type { ResolvedParams } from '../engine/types';
 
-/** Current canonical profile schema version. Bump when the shape changes. */
-export const CANONICAL_PROFILE_SCHEMA_VERSION = '1.0' as const;
+/**
+ * Schema versions the validation layer accepts at runtime.
+ * Bump when the document shape changes; add migration logic in a future story.
+ */
+export const SUPPORTED_SCHEMA_VERSION = '1.0' as const;
+
+/** Current canonical profile schema version. Alias of `SUPPORTED_SCHEMA_VERSION`. */
+export const CANONICAL_PROFILE_SCHEMA_VERSION = SUPPORTED_SCHEMA_VERSION;
 
 /** Identifies the printer / material / nozzle / goal combination for a profile. */
 export type CanonicalProfileCombination = {
