@@ -15,6 +15,9 @@ node_modules/
 playwright-report/
 test-results/
 
+# Test coverage
+coverage/
+
 # Environment
 .env
 .env.local

@@ -68,13 +68,19 @@ export function createFeedbackHandler(deps: FeedbackHandlerDeps) {
       return;
     }
 
-    await deps.repository.save({
-      slug: validated.slug,
-      outcome: validated.outcome,
-      failureReasons: validated.failureReasons ?? [],
-      profileVersion: validated.profileVersion,
-      submittedAt: new Date().toISOString(),
-    });
+    try {
+      await deps.repository.save({
+        slug: validated.slug,
+        outcome: validated.outcome,
+        failureReasons: validated.failureReasons ?? [],
+        profileVersion: validated.profileVersion,
+        submittedAt: new Date().toISOString(),
+      });
+    } catch {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+      return;
+    }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));

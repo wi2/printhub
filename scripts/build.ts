@@ -24,6 +24,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, join } from 'path';
+import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { resolve as resolveLayers } from './engine/resolve.js';
 import { validate } from './engine/validate.js';
@@ -112,7 +113,7 @@ function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
-function run(): void {
+export function run(): void {
   ensureDir(GENERATED_DIR);
   ensureDir(PROFILE_VERSIONS_DIR);
   ensureDir(PRUSASLICER_DIR);
@@ -239,4 +240,8 @@ function run(): void {
   }
 }
 
-run();
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  run();
+}

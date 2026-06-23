@@ -171,5 +171,28 @@ describe('FeedbackPrompt', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('shows thank-you and logs to console when fetch throws a network error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      const user = userEvent.setup();
+      render(<FeedbackPrompt slug={SLUG} profileVersion={PROFILE_VERSION} />);
+
+      await user.click(screen.getByRole('button', { name: 'Yes — it worked' }));
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Thanks. This helps us improve the profile for everyone.',
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Feedback submission failed:',
+        expect.any(TypeError),
+      );
+
+      consoleSpy.mockRestore();
+      fetchSpy.mockRestore();
+    });
   });
 });

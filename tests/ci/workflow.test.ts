@@ -174,7 +174,7 @@ describe('CI workflow', () => {
         'npm run build:profiles',
         'npm run build',
         'npm run typecheck',
-        'npm run test',
+        'npm run test -- --coverage',
         'npm run test:e2e',
       ]),
     );

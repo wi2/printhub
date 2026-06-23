@@ -50,6 +50,38 @@ async function postFeedback(baseUrl: string, body: unknown) {
   });
 }
 
+async function postFeedbackRaw(baseUrl: string, body: string) {
+  return fetch(`${baseUrl}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+}
+
+class FailingFeedbackRepository implements FeedbackRepository {
+  saveCalls = 0;
+
+  async save(_feedback: FeedbackSession): Promise<void> {
+    this.saveCalls += 1;
+    throw new Error('Persistence failed');
+  }
+
+  async findAll(): Promise<FeedbackSession[]> {
+    return [];
+  }
+
+  async findBySlug(_slug: string): Promise<FeedbackSession[]> {
+    return [];
+  }
+
+  async findBySlugAndVersion(
+    _slug: string,
+    _profileVersion: number,
+  ): Promise<FeedbackSession[]> {
+    return [];
+  }
+}
+
 describe('POST /api/feedback', () => {
   let server: Server;
   let baseUrl: string;
@@ -258,5 +290,99 @@ describe('POST /api/feedback', () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Unknown profile slug' });
+  });
+
+  it('returns 429 when the rate limit is exceeded', async () => {
+    const limitedRepository = new TestFeedbackRepository();
+    const rateLimiter = createRateLimiter(5, 60_000);
+    const limitedServer = createAppServer({
+      repository: limitedRepository,
+      manifestPath,
+      rateLimiter,
+    });
+
+    await new Promise<void>(resolve => {
+      limitedServer.listen(0, '127.0.0.1', () => resolve());
+    });
+
+    const address = limitedServer.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Expected server to listen on a TCP port');
+    }
+
+    const limitedBaseUrl = `http://127.0.0.1:${address.port}`;
+    const payload = {
+      slug: 'bambu-a1-mini-pla-04mm-balanced',
+      outcome: 'success' as const,
+      profileVersion: PROFILE_VERSION,
+    };
+
+    try {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const response = await postFeedback(limitedBaseUrl, payload);
+        expect(response.status).toBe(200);
+      }
+
+      const rejected = await postFeedback(limitedBaseUrl, payload);
+
+      expect(rejected.status).toBe(429);
+      expect(await rejected.json()).toEqual({ error: 'Too many requests' });
+      expect(await limitedRepository.findAll()).toHaveLength(5);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        limitedServer.close(error => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it('returns 400 when the request body is malformed JSON', async () => {
+    const response = await postFeedbackRaw(baseUrl, '{ not valid json');
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'Invalid JSON body' });
+  });
+
+  it('returns 400 when the request body is empty', async () => {
+    const response = await postFeedbackRaw(baseUrl, '');
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'slug is required' });
+  });
+
+  it('returns 500 when repository persistence fails', async () => {
+    const failingRepository = new FailingFeedbackRepository();
+    const rateLimiter = createRateLimiter(100, 60_000);
+    const failingServer = createAppServer({
+      repository: failingRepository,
+      manifestPath,
+      rateLimiter,
+    });
+
+    await new Promise<void>(resolve => {
+      failingServer.listen(0, '127.0.0.1', () => resolve());
+    });
+
+    const address = failingServer.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Expected server to listen on a TCP port');
+    }
+
+    const failingBaseUrl = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const response = await postFeedback(failingBaseUrl, {
+        slug: 'bambu-a1-mini-pla-04mm-balanced',
+        outcome: 'success',
+        profileVersion: PROFILE_VERSION,
+      });
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ error: 'Internal server error' });
+      expect(failingRepository.saveCalls).toBe(1);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        failingServer.close(error => (error ? reject(error) : resolve()));
+      });
+    }
   });
 });

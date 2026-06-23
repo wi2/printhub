@@ -34,4 +34,40 @@ describe('validateFeedbackInput', () => {
       validateFeedbackInput({ ...validBody, profileVersion: '1' }),
     ).toEqual({ status: 400, message: 'profileVersion must be a positive integer' });
   });
+
+  it('returns 400 when the body is not a JSON object', () => {
+    expect(validateFeedbackInput(null)).toEqual({
+      status: 400,
+      message: 'Request body must be a JSON object',
+    });
+    expect(validateFeedbackInput('string')).toEqual({
+      status: 400,
+      message: 'Request body must be a JSON object',
+    });
+  });
+
+  it('returns 400 when the body is an array', () => {
+    expect(validateFeedbackInput([])).toEqual({
+      status: 400,
+      message: 'slug is required',
+    });
+  });
+
+  it('returns 400 when failureReasons contains non-string values', () => {
+    expect(
+      validateFeedbackInput({
+        ...validBody,
+        outcome: 'failure',
+        failureReasons: [1, 2],
+      }),
+    ).toEqual({ status: 400, message: 'failureReasons must be an array of strings' });
+
+    expect(
+      validateFeedbackInput({
+        ...validBody,
+        outcome: 'failure',
+        failureReasons: ['valid', 123],
+      }),
+    ).toEqual({ status: 400, message: 'failureReasons must be an array of strings' });
+  });
 });
