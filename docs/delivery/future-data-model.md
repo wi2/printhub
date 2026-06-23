@@ -12,6 +12,8 @@
 
 **V2 Sprint 3 update:** The build pipeline generates `generated/profile-versions/index.json` — a deterministic Profile Version Registry keyed by slug. Each entry records `currentVersion` and a `versions` list (`version`, `slug`, `status: active`). This registry links build artifacts to the same version identity referenced by `Feedback.profileVersion`. Registry is informational only at V2-S3 and does not yet provide version history management. Future work: preserve superseded versions, attach validation status, and support comparison tooling and analytics.
 
+**V2 Sprint 5 update:** `server/analytics/` provides pure aggregation functions over `FeedbackSession` records. `ProfileMetrics` and `VersionMetrics` describe per-slug, per-version success rates; `FailureReasonMetrics` aggregates failure reason selections. `buildFeedbackReport()` composes a full analytics snapshot. No database, API, or UI — the layer is consumed by the V3 statistics API and future curator dashboards. **Analytics are computed from feedback records and do not modify profiles automatically.**
+
 ---
 
 ## Overview
@@ -161,6 +163,8 @@ Records a user-submitted print outcome for a specific download event.
 **V2 Sprint 2 shape (current):** `{ slug, outcome, failureReasons, profileVersion, submittedAt }` stored as JSON in `data/feedback.json`. `profileVersion` links each submission to the canonical profile revision active at submit time.
 
 **Future V2+ change:** Persisted to SQLite `feedback` table with `generationId` and `profileVersionId` foreign keys. Existing `feedback.json` records are imported with `generationId: undefined` and `profileVersionId: undefined` to preserve history.
+
+**Analytics relationship (V2 Sprint 5 foundation):** Each `Feedback` record's `profileVersion` field links the outcome to the canonical profile revision active at submit time. The analytics layer (`server/analytics/`) reads an array of feedback records and produces `ProfileMetrics` grouped by slug and version, plus `FailureReasonMetrics` for failure reason breakdowns. This enables V3 confidence scoring per combination and V4 parameter impact analysis without modifying profile artifacts. **Analytics are computed from feedback records and do not modify profiles automatically.**
 
 ---
 

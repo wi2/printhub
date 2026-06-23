@@ -10,6 +10,8 @@
 
 **V2 Sprint 3 update:** The build pipeline generates `generated/profile-versions/index.json` — a deterministic Profile Version Registry. Each slug entry lists versions with `status: active` and a `currentVersion` pointer. This registry aligns with `Feedback.profileVersion` (same integer identity) and prepares for future version history, comparison tooling, analytics, and validation workflows. Registry is informational only at V2-S3 and does not yet provide version history management.
 
+**V2 Sprint 5 update:** `server/analytics/` implements a pure analytics foundation. `computeProfileMetrics()`, `computeFailureMetrics()`, and `buildFeedbackReport()` aggregate feedback records by slug and `profileVersion` with no I/O, persistence, or runtime wiring. **Analytics are computed from feedback records and do not modify profiles automatically.** V3 consumes this layer via the stats API; V4 curator dashboards consume the same functions for internal reporting.
+
 ---
 
 ## 1. Current Architecture (V1 MVP)
@@ -153,20 +155,27 @@ Future migration approach (not implemented): detect `metadata.schemaVersion` →
 ```
 POST /api/feedback ─────────────────────────────────→ Feedback store (SQLite)
                                                               ↓
-                                               Aggregation job (scheduled/on-demand)
+                                               server/analytics/buildFeedbackReport()   ← V2 Sprint 5
                                                               ↓
-                                               GET /api/profile/:slug/stats
+                                               GET /api/profile/:slug/stats   ← V3 (wraps analytics layer)
                                                               ↓
                                                ProfilePage (confidence score)
 ```
 
 The `feedback.json` append-only file is replaced by a SQLite database in V2, enabling the aggregate queries required for V3 stats.
 
-The aggregation job computes per-combination:
+The V2 Sprint 5 analytics layer (`server/analytics/`) provides pure functions that compute:
+- Per-slug, per-version success rates (`ProfileMetrics` / `VersionMetrics`)
+- Failure reason breakdowns (`FailureReasonMetrics`)
+- Global totals for confidence scoring
+
+V3 adds the stats API endpoint and optional caching around these functions. The aggregation job computes per-combination:
 - Total submission count
 - Success / failure / pending counts
 - Success rate = success ÷ (success + failure)
 - Confidence tier based on total submission count
+
+**Analytics are computed from feedback records and do not modify profiles automatically.**
 
 ### V4 — Analysis Layer
 

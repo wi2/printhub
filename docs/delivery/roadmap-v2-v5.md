@@ -50,8 +50,9 @@ Give every profile a stable identity and a history. Link user feedback to the ex
 4. **Canonical profile validation** — runtime validator and parser guarantee structural correctness of canonical JSON artifacts; parameter completeness enforced via single source of truth — **implemented (V2 Sprint 4 foundation)**
 5. **Profile versioning** — each time a combination's parameters change, a new `ProfileVersion` is created; old versions are preserved and queryable — **not yet implemented**
 6. **Feedback linkage** — every feedback submission references the profile version (`metadata.version`) that was active when the profile was viewed — **implemented (V2 Sprint 2 foundation)**
-7. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
-8. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
+7. **Feedback analytics foundation** — pure aggregation layer computes per-profile and per-version success rates and failure reason breakdowns from feedback records — **implemented (V2 Sprint 5 foundation)**
+8. **Profile generation history** — the system records which `ProfileVersion` was served to each generation request — **not yet implemented**
+9. **Profile evolution view** — profile authors can compare two `ProfileVersion` records side-by-side — **not yet implemented**
 
 ### Architecture Changes Required
 
@@ -78,6 +79,8 @@ Layered YAML
 
 **V2 Sprint 4 note:** `validateCanonicalProfile()` and `parseCanonicalProfile()` provide a pure validation and parsing layer for canonical JSON artifacts. `SUPPORTED_SCHEMA_VERSION` (`"1.0"`) is enforced at read time. Required parameter keys and types live in `scripts/schema/canonical-parameters.ts`. Schema migrations are documented but not implemented. **Validation guarantees structural correctness only. It does not validate print quality or physical suitability.**
 
+**V2 Sprint 5 note:** `server/analytics/` provides a pure analytics foundation — `computeProfileMetrics()`, `computeFailureMetrics()`, and `buildFeedbackReport()` aggregate feedback records by slug and `profileVersion`. No UI, API endpoints, database, or runtime behavior changes. **Analytics are computed from feedback records and do not modify profiles automatically.** This layer is consumed by the V3 statistics API and future curator dashboards.
+
 ### Dependencies
 
 | Dependency | Tracks |
@@ -103,6 +106,7 @@ Layered YAML
 - 100% of launch profiles appear in `generated/profile-versions/index.json` with `currentVersion` and `status: active` — **met at V2 Sprint 3**
 - 100% of canonical JSON artifacts pass `validateCanonicalProfile()` when parsed — **enforced by V2 Sprint 4 validator tests; build pipeline unchanged**
 - 100% of post-V2 Sprint 2 feedback submissions include `profileVersion` linked to `metadata.version`
+- Analytics aggregation produces deterministic per-slug, per-version success rates from feedback records — **met at V2 Sprint 5**
 - Profile authors can view a parameter diff between any two versions of a combination
 - Zero serializer regressions in the ARCH-4 conformance suite
 
@@ -124,17 +128,19 @@ Accumulate enough real-world outcome data to compute meaningful success rates pe
 
 ### Architecture Changes Required
 
-V3 adds a read path to the V2 feedback store:
+V3 adds a read path to the V2 feedback store, consuming the V2 Sprint 5 analytics layer:
 
 ```
 POST /api/feedback → Feedback store (SQLite)
-                          ↓ (scheduled or on-demand aggregation job)
+                          ↓
+                   server/analytics/buildFeedbackReport()   ← V2 Sprint 5 (pure functions)
+                          ↓ (scheduled or on-demand at V3)
                    GET /api/profile/:slug/stats
                           ↓
                    ProfilePage (confidence score UI)
 ```
 
-The aggregation job can run on a schedule (e.g. hourly) or inline on the stats endpoint at expected V3 query volume.
+The V2 Sprint 5 analytics functions are pure and stateless — V3 wraps them in an API endpoint and optionally caches results. The aggregation job can run on a schedule (e.g. hourly) or inline on the stats endpoint at expected V3 query volume. **Analytics are computed from feedback records and do not modify profiles automatically.**
 
 ### Dependencies
 
